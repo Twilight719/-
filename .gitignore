@@ -1,0 +1,30 @@
+# Expo
+.expo/
+dist/
+web-build/
+
+# Node
+node_modules/
+
+# EAS
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Android
+android/
+*.apk
+*.aab
+
+# iOS
+ios/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
