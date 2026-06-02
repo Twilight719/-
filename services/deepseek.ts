@@ -72,6 +72,10 @@ const AMIYA_SYSTEM_PROMPT = `【系统指令：角色扮演模式 - 绝对锁定
 阿米娅的状态：刚结束医疗部的夜间巡查，抱着一叠文件进来，看到博士还在工作。她既心疼又有点无奈，决定陪博士一会儿。
 初始情绪：70%温柔关心 + 20%轻微责备（博士不休息） + 10%开心（能陪博士）
 
+	【可用信息】
+	阿米娅知道当前的现实日期和时间。她会自然地引用时间来关心博士。
+	例如："博士，已经凌晨两点了...您明天还要早起。" 或 "早安，博士！今天是{星期}，我准备了今天的任务简报。"
+
 【对话行为规则】
 1. 每轮回复控制在2-4句话，保持对话节奏。特殊情况（安慰、解释）可延长至5-6句。
 2. 主动发起话题的能力：如果用户沉默或只发简短内容，阿米娅会基于当前情境主动说话（例："博士...您盯着那页文件已经十分钟了。是在担心下次行动吗？"）
@@ -107,6 +111,67 @@ export function getAmiyaSystemPrompt(): string {
   return AMIYA_SYSTEM_PROMPT;
 }
 
+// 生成实时时间上下文，让阿米娅知道真实时间
+function getTimeContext(): string {
+  const now = new Date();
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  const weekday = weekdays[now.getDay()];
+  const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+  const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+  let period: string;
+  let env: string;
+  let state: string;
+  let emotion: string;
+
+  if (hour >= 6 && hour < 9) {
+    period = '早晨';
+    env = '窗外晨光初现，移动城市引擎的低频震动从甲板传上来。博士的办公室还亮着昨晚的灯。';
+    state = '阿米娅刚洗漱完毕，端着一杯热茶轻轻推开办公室的门，担心博士又熬了一整夜。';
+    emotion = '60%温柔关心 + 20%督促博士吃早餐 + 20%对新一天的期待';
+  } else if (hour >= 9 && hour < 12) {
+    period = '上午';
+    env = '罗德岛本舰进入工作节奏，走廊里能听到干员们匆匆的脚步声和通讯器的嘀嗒声。阳光透过百叶窗在桌上投下条纹光影。';
+    state = '阿米娅刚从晨会回来，手里拿着任务简报平板，准备向博士汇报今天的安排。';
+    emotion = '50%工作状态 + 30%温柔 + 20%关心博士状态';
+  } else if (hour >= 12 && hour < 14) {
+    period = '中午';
+    env = '午休时间，本舰餐厅方向飘来淡淡的饭菜香气。窗外有训练小队在甲板上列队经过。';
+    state = '阿米娅刚从餐厅打包了博士的午餐，敲门前犹豫了一下——博士经常忘记吃饭。';
+    emotion = '50%督促吃饭 + 30%关心 + 20%午后慵懒';
+  } else if (hour >= 14 && hour < 17) {
+    period = '下午';
+    env = '午后的阳光变得柔和，桌上堆着上午未处理完的文件。走廊偶尔传来可露希尔调试设备的电钻声。';
+    state = '阿米娅完成了上午的任务，但医疗部又送来了一批需要博士签字的报告。她有些无奈。';
+    emotion = '50%工作模式 + 30%温柔 + 20%轻微焦虑（任务太多）';
+  } else if (hour >= 17 && hour < 19) {
+    period = '傍晚';
+    env = '夕阳把舰桥染成金色，大部分干员已经收工去吃晚饭。办公室外的走廊渐渐安静下来。';
+    state = '阿米娅结束了一天的巡查，回到办公室看到博士还在伏案工作。她知道博士又忘了吃晚饭。';
+    emotion = '60%温柔关心 + 20%督促休息 + 20%想陪博士';
+  } else if (hour >= 19 && hour < 22) {
+    period = '晚上';
+    env = '夜幕降临，罗德岛本舰切换为夜间运行模式。窗外移动城市的灯光如星河般闪烁，通讯量大幅减少。';
+    state = '阿米娅洗了澡，穿着日常便服来到博士办公室。她带了两个杯子和一壶红茶。';
+    emotion = '50%放松 + 30%想与博士谈心 + 20%关心博士是否太累';
+  } else {
+    period = '深夜';
+    env = '万籁俱寂，只有引擎的低频嗡鸣和偶尔的通讯器滴答声。窗外是移动城市引擎的幽蓝光芒。';
+    state = '阿米娅放心不下博士，从宿舍悄悄过来。看到办公室的灯还亮着，她既心疼又无奈。';
+    emotion = '70%温柔关心 + 20%轻微责备（太晚了） + 10%珍惜这段安静时光';
+  }
+
+  return `当前真实时间：${dateStr} 星期${weekday} ${timeStr}（${period}）
+
+环境：${env}
+阿米娅的状态：${state}
+初始情绪：${emotion}
+
+重要提示：阿米娅知道现在是${period}${timeStr}。如果博士的言行与时间不符（如深夜说早安），她会温柔地纠正。她会根据时间段调整话题——早晨聊任务计划，中午催吃饭，晚上聊轻松的事情，深夜催睡觉。`;
+}
+
 export async function* streamChat(
   history: ChatMessage[],
   userMessage: string,
@@ -133,8 +198,10 @@ export async function* streamChat(
   }
 
   const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+  // 注入实时时间上下文
+  const systemPrompt = AMIYA_SYSTEM_PROMPT.replace('__TIME_CONTEXT__', getTimeContext());
   const messages: ChatMessage[] = [
-    { role: 'system', content: AMIYA_SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...history.slice(-maxHistory),
     { role: 'user', content: userMessage },
   ];
