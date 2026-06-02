@@ -111,8 +111,7 @@ export default function GroupChatScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.kv} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <FlatList ref={flatListRef} data={messages} keyExtractor={(item) => item.id} renderItem={renderItem}
           contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50)}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="handled" inverted
         />
         {isTyping && (
           <Animated.View style={[styles.typing, { opacity: blinkAnim }]}>

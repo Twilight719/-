@@ -200,17 +200,9 @@ export default function ChatScreen() {
           renderItem={renderItem}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollToEnd(true)}
-          onLayout={() => scrollToEnd(false)}
           keyboardShouldPersistTaps="handled"
-          // 检测用户是否手动滚离底部
-          onScroll={(e) => {
-            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-            const distanceFromBottom =
-              contentSize.height - contentOffset.y - layoutMeasurement.height;
-            isNearBottom.current = distanceFromBottom < 80;
-          }}
-          scrollEventThrottle={100}
+          // 反转列表：最新消息始终在底部，无需手动滚动
+          inverted
         />
 
         {/* 打字指示器 */}
