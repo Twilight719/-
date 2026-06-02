@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '6',
+    version: '1.0.6',
+    date: '2026-06-02',
+    message:
+      '🔧 修复输入法键盘问题\n• 移除 KeyboardAvoidingView\n• 手动管理键盘高度\n• 中文输入法收起后不再残留空白\n• 发送按钮始终紧贴键盘上方',
+  },
+  {
     id: '5',
     version: '1.0.5',
     date: '2026-06-02',
