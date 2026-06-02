@@ -147,10 +147,10 @@ async function loadChats(): Promise<Chat[]> {
     const raw = await AsyncStorage.getItem(STORAGE_CHATS);
     if (raw) {
       const chats: Chat[] = JSON.parse(raw);
-      // 迁移修复：确保所有聊天的 avatar 是有效的（旧数据可能丢失了 require() 引用）
+      // 强制刷新 avatar 为当前 asset ID（require() 在每次打包/热更后 ID 会变）
       return chats.map((chat) => ({
         ...chat,
-        avatar: typeof chat.avatar === 'number' ? chat.avatar : CHARACTER_AVATAR,
+        avatar: CHARACTER_AVATAR,
       }));
     }
   } catch (e) {
