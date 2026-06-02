@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '16',
+    version: '1.3.0',
+    date: '2026-06-02',
+    message:
+      '🌟 新干员加入：Mon3tr + 可露希尔\n• Mon3tr：凯尔希的共生体，纯粹直率的源石生命\n• 可露希尔：元气工程师+奸商\n• 群聊升级为 4 名干员\n• 所有干员均支持独立聊天',
+  },
+  {
     id: '15',
     version: '1.2.2',
     date: '2026-06-02',

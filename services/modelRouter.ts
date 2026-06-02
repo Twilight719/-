@@ -110,6 +110,22 @@ export function analyzeMessage(
     }
   }
 
+  if (characterId === 'mon3tr') {
+    const mon3trTriggers = ['凯尔希', '核心', '源石', '共生', '孤独', '存在', '自由', '守护'];
+    if (mon3trTriggers.some((t) => lowerMsg.includes(t))) {
+      triggerScore += 10;
+      reasons.push('Mon3tr深度触发');
+    }
+  }
+
+  if (characterId === 'closure') {
+    const closureTriggers = ['血魔', '萨卡兹', '卡兹戴尔', '发明', '工程部', '预算', '龙门币'];
+    if (closureTriggers.some((t) => lowerMsg.includes(t))) {
+      triggerScore += 8;
+      reasons.push('可露希尔深度触发');
+    }
+  }
+
   const total = topicScore + emotionScore + contextScore + triggerScore;
 
   return {

@@ -62,11 +62,17 @@ const AMIYA_AVATAR = require('../assets/characters/amiya_avatar.png');
 const AMIYA_FULL = require('../assets/characters/amiya_full.png');
 const KALTSIT_AVATAR = require('../assets/characters/kaltsit_avatar.webp');
 const KALTSIT_FULL = require('../assets/characters/kaltsit_full.webp');
+const MON3TR_AVATAR = require('../assets/characters/mon3tr_avatar.webp');
+const MON3TR_FULL = require('../assets/characters/mon3tr_full.webp');
+const CLOSURE_AVATAR = require('../assets/characters/closure_avatar.webp');
+const CLOSURE_FULL = require('../assets/characters/closure_full.webp');
 
 // 角色头像映射表（供加载时修复 asset ID）
 const CHARACTER_AVATARS: Record<string, ReturnType<typeof require>> = {
   amiya: AMIYA_AVATAR,
   kaltsit: KALTSIT_AVATAR,
+  mon3tr: MON3TR_AVATAR,
+  closure: CLOSURE_AVATAR,
 };
 
 const INITIAL_CHARACTERS: Character[] = [
@@ -94,6 +100,30 @@ const INITIAL_CHARACTERS: Character[] = [
     description: '罗德岛医疗部负责人，矿石病研究专家。冷静理性，医术精湛。',
     tags: ['医疗', '管理者', '前巴别塔'],
   },
+  {
+    id: 'mon3tr',
+    name: 'Mon3tr',
+    avatar: MON3TR_AVATAR,
+    fullImage: MON3TR_FULL,
+    codeName: 'Mon3tr',
+    race: '源石构造体',
+    origin: '未知',
+    class: '近卫/链愈师',
+    description: '凯尔希的共生体，高阶源石生命。已获人形与自由意志，纯粹而直率。',
+    tags: ['源石生命', '近卫', '凯尔希的共生体'],
+  },
+  {
+    id: 'closure',
+    name: '可露希尔',
+    avatar: CLOSURE_AVATAR,
+    fullImage: CLOSURE_FULL,
+    codeName: 'Closure',
+    race: '血魔',
+    origin: '卡兹戴尔',
+    class: '工程/采购',
+    description: '罗德岛总工程师，采购中心负责人。元气满满的技术宅兼奸商。',
+    tags: ['工程师', '奸商', '技术宅'],
+  },
 ];
 
 // ====== 阿米娅主动发起聊天的消息池 ======
@@ -117,26 +147,26 @@ function getRandomProactiveMessage(): string {
 }
 
 // ====== 默认 Amiya 聊天（首次使用时创建） ======
+const DEFAULT_CHATS: Record<string, { lastMessage: string }> = {
+  amiya: { lastMessage: '博士，通讯终端已就绪。随时可以开始对话。' },
+  kaltsit: { lastMessage: '医疗部通讯已接通。有事直说。' },
+  mon3tr: { lastMessage: 'Mon3tr在这里。博士...凯尔希在吗？' },
+  closure: { lastMessage: '博士~要不要看看可露希尔大师的最新发明？今天打折哦！' },
+};
+
 function createDefaultChat(charId: string): Chat {
   const char = INITIAL_CHARACTERS.find((c) => c.id === charId);
-  if (charId === 'amiya') {
-    return {
-      id: 'chat-amiya',
-      characterId: 'amiya',
-      characterName: '阿米娅',
-      avatar: AMIYA_AVATAR,
-      lastMessage: '博士，通讯终端已就绪。随时可以开始对话。',
-      lastMessageTime: Date.now(),
-      unreadCount: 0,
-      online: true,
-    };
-  }
+  const defaults = DEFAULT_CHATS[charId] || DEFAULT_CHATS['amiya'];
+  const avatars: Record<string, ReturnType<typeof require>> = {
+    amiya: AMIYA_AVATAR, kaltsit: KALTSIT_AVATAR,
+    mon3tr: MON3TR_AVATAR, closure: CLOSURE_AVATAR,
+  };
   return {
-    id: 'chat-kaltsit',
-    characterId: 'kaltsit',
-    characterName: '凯尔希',
-    avatar: KALTSIT_AVATAR,
-    lastMessage: '医疗部通讯已接通。有事直说。',
+    id: `chat-${charId}`,
+    characterId: charId,
+    characterName: char?.name || charId,
+    avatar: avatars[charId] || AMIYA_AVATAR,
+    lastMessage: defaults.lastMessage,
     lastMessageTime: Date.now(),
     unreadCount: 0,
     online: true,
@@ -240,7 +270,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     // 迁移：确保所有默认干员聊天都存在（旧版本升级）
-    const requiredChats = ['chat-amiya', 'chat-kaltsit'];
+    const requiredChats = ['chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure'];
     for (const requiredChatId of requiredChats) {
       if (!persistedChats.find((c) => c.id === requiredChatId)) {
         const charId = requiredChatId.replace('chat-', '');
