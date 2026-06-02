@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -53,15 +53,15 @@ export default function ChatScreen() {
   const switchAlter = useChatStore((s) => s.switchAlter);
   const characters = useChatStore((s) => s.characters);
 
-  // 检查当前干员是否有异格
-  const currentChar = characters.find((c) => c.id === chat?.characterId);
-  const hasAlter = currentChar?.alterId || currentChar?.alterOf;
-  const alterName = currentChar?.alterId
-    ? characters.find((c) => c.id === currentChar.alterId)?.name
-    : currentChar?.alterOf
-    ? characters.find((c) => c.id === currentChar.alterOf)?.name
-    : null;
-  const isAlterVersion = !!currentChar?.alterOf;
+  // 异格判断（用 useMemo 避免每次渲染都遍历）
+  const alterInfo = React.useMemo(() => {
+    const c = characters.find((ch) => ch.id === chat?.characterId);
+    if (!c) return { alterInfo.hasAlter: false, alterInfo.alterName: null, isAlter: false };
+    const targetId = c.alterId || c.alterOf;
+    if (!targetId) return { alterInfo.hasAlter: false, alterInfo.alterName: null, isAlter: false };
+    const target = characters.find((ch) => ch.id === targetId);
+    return { alterInfo.hasAlter: true, alterInfo.alterName: target?.name || null, isAlter: !!c.alterOf };
+  }, [chat?.characterId, characters]);
 
   // 自动滚动到底部（新消息到达时）
   const scrollToEnd = useCallback((animated = true) => {
@@ -159,14 +159,14 @@ export default function ChatScreen() {
       <ArkHeader
         title={chat?.characterName || '通讯中'}
         subtitle={
-          hasAlter
-            ? `切换：${isAlterVersion ? '←原版' : '异格→'} (${alterName})`
+          alterInfo.hasAlter
+            ? `切换：${alterInfo.isAlter ? '←原版' : '异格→'} (${alterInfo.alterName})`
             : (chat?.online ? 'ONLINE' : 'OFFLINE')
         }
         onBack={() => router.back()}
         rightAction={
           <View style={styles.headerRight}>
-            {hasAlter && (
+            {alterInfo.hasAlter && (
               <TouchableOpacity
                 style={styles.alterBtn}
                 onPress={() => switchAlter(id)}
