@@ -1,209 +1,203 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect} from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ImageBackground, Animated,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Modal,
+  TextInput, ScrollView, Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { ArkHeader, HexAvatar } from '@/components/ArkUI';
+import { ArkHeader, ArkListItem } from '@/components/ArkUI';
+import GroupAvatar from '@/components/GroupAvatar';
+import { useGroupStore, Group, MEMBER_NAMES } from '@/stores/groupStore';
 import { COLORS, FONTS, SPACING } from '@/constants/theme';
-import { useGroupStore, GroupMessage } from '@/stores/groupStore';
 
-const CHAT_BG_IMAGE = require('../../assets/characters/amiya_bg.png');
-
-function formatGroupTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function formatTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
+  return new Date(timestamp).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 }
 
-function shouldShowTime(messages: GroupMessage[], index: number): boolean {
-  if (index === 0) return true;
-  const prev = messages[index - 1].timestamp;
-  const curr = messages[index].timestamp;
-  return curr - prev > 1000 * 60 * 5;
-}
+const ALL_MEMBERS = [
+  { id: 'amiya', name: '阿米娅' },
+  { id: 'kaltsit', name: '凯尔希' },
+  { id: 'mon3tr', name: 'Mon3tr' },
+  { id: 'closure', name: '可露希尔' },
+];
 
-// 不同干员的头像颜色
-const OPERATOR_COLORS: Record<string, string> = {
-  '阿米娅': COLORS.primary,
-  '凯尔希': COLORS.advanced,
-  '可露希尔': COLORS.accent,
-};
+export default function GroupListScreen() {
+  const router = useRouter();
+  const groups = useGroupStore((s) => s.groups);
+  const initGroups = useGroupStore((s) => s.initGroups);
+  const createGroup = useGroupStore((s) => s.createGroup);
+  const [showCreate, setShowCreate] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [selected, setSelected] = useState<string[]>(['amiya', 'kaltsit']);
 
-export default function GroupChatScreen() {
-  const [inputText, setInputText] = useState('');
-  const flatListRef = useRef<FlatList>(null);
-  const blinkAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => { initGroups(); }, [initGroups]);
 
-  const messages = useGroupStore((s) => s.messages);
-  const isTyping = useGroupStore((s) => s.isTyping);
-  const sendMessage = useGroupStore((s) => s.sendMessage);
-  const initGroup = useGroupStore((s) => s.initGroup);
-
-  useEffect(() => { initGroup(); }, [initGroup]);
-
-  // 自动滚动
-  useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+  const handleCreate = async () => {
+    if (selected.length < 2) {
+      Alert.alert('提示', '请至少选择 2 名干员');
+      return;
     }
-  }, [messages.length, messages[messages.length - 1]?.content.length]);
+    const name = groupName.trim();
+    await createGroup(name, selected);
+    setShowCreate(false);
+    setGroupName('');
+    setSelected(['amiya', 'kaltsit']);
+  };
 
-  useEffect(() => {
-    if (isTyping) {
-      Animated.loop(Animated.sequence([
-        Animated.timing(blinkAnim, { toValue: 0.3, duration: 600, useNativeDriver: true }),
-        Animated.timing(blinkAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      ])).start();
-    } else {
-      blinkAnim.setValue(1);
-    }
-  }, [isTyping, blinkAnim]);
+  const toggleMember = (id: string) => {
+    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
 
-  const handleSend = useCallback(async () => {
-    if (!inputText.trim()) return;
-    const text = inputText.trim();
-    setInputText('');
-    await sendMessage(text);
-  }, [inputText, sendMessage]);
+  const handleGroupPress = (group: Group) => {
+    useGroupStore.getState().clearUnread(group.id);
+    router.push(`/group-chat/${group.id}`);
+  };
 
-  const renderItem = ({ item, index }: { item: GroupMessage; index: number }) => {
-    const showTime = shouldShowTime(messages, index);
-    const color = OPERATOR_COLORS[item.senderName] || COLORS.primary;
-    const isUser = item.sender === 'user';
-
-    return (
-      <View>
-        {showTime && (
-          <View style={styles.timeBox}>
-            <Text style={styles.timeText}>{formatGroupTime(item.timestamp)}</Text>
+  const renderGroup = ({ item }: { item: Group }) => (
+    <ArkListItem onPress={() => handleGroupPress(item)}>
+      <View style={styles.groupRow}>
+        <GroupAvatar memberIds={item.memberIds} size={52} />
+        <View style={styles.groupInfo}>
+          <View style={styles.topRow}>
+            <Text style={styles.groupName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.groupTime}>{formatTime(item.lastMessageTime)}</Text>
           </View>
-        )}
-        <View style={[styles.msgRow, isUser && styles.msgRowRight]}>
-          {!isUser && (
-            <View style={styles.avatarCol}>
-              <View style={[styles.avatarPlaceholder, { borderColor: color }]}>
-                <Text style={[styles.avatarLetter, { color }]}>
-                  {item.senderName[0]}
-                </Text>
+          <View style={styles.bottomRow}>
+            <Text style={styles.memberPreview} numberOfLines={1}>
+              {item.memberIds.map((id) => MEMBER_NAMES[id] || id).join('、')}
+            </Text>
+            {item.unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{item.unreadCount}</Text>
               </View>
-              <Text style={[styles.senderLabel, { color }]} numberOfLines={1}>
-                {item.senderName}
-              </Text>
-            </View>
-          )}
-          <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAi, { borderLeftColor: !isUser ? color : 'transparent' }]}>
-            <Text style={styles.bubbleText}>{item.content}</Text>
+            )}
           </View>
         </View>
       </View>
-    );
-  };
+    </ArkListItem>
+  );
 
   return (
     <View style={styles.container}>
-      <ImageBackground source={CHAT_BG_IMAGE} style={styles.bgImage} imageStyle={styles.bgImageStyle} blurRadius={40}>
-        <View style={styles.bgOverlay} />
-      </ImageBackground>
-
       <ArkHeader
-        title="罗德岛群聊"
-        subtitle={`${messages.length} 条消息 · 3 人在线`}
+        title="群聊"
+        subtitle={`${groups.length} 个群组`}
+        rightAction={
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
+            <Ionicons name="create-outline" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+        }
+      />
+      <FlatList
+        data={groups}
+        keyExtractor={(item) => item.id}
+        renderItem={renderGroup}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>暂无群聊，点击右上角创建</Text>
+          </View>
+        }
       />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.messageList}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50)}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          keyboardShouldPersistTaps="handled"
-        />
+      {/* 创建群聊弹窗 */}
+      <Modal visible={showCreate} transparent animationType="slide" statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>创建群聊</Text>
+              <TouchableOpacity onPress={() => setShowCreate(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
 
-        {isTyping && (
-          <Animated.View style={[styles.typingBox, { opacity: blinkAnim }]}>
-            <Text style={styles.typingText}>干员们正在讨论...</Text>
-          </Animated.View>
-        )}
+            <View style={styles.modalBody}>
+              <Text style={styles.label}>群聊名称</Text>
+              <TextInput
+                value={groupName}
+                onChangeText={setGroupName}
+                placeholder={selected.map((id) => MEMBER_NAMES[id] || id).join('、') + '的群聊'}
+                placeholderTextColor={COLORS.low}
+                style={styles.nameInput}
+                maxLength={20}
+              />
 
-        <BlurView intensity={30} tint="dark" style={styles.inputBar}>
-          <View style={styles.inputBarLine} />
-          <View style={styles.inputRow}>
-            <TextInput
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="发送群聊消息..."
-              placeholderTextColor={COLORS.low}
-              style={styles.input}
-              multiline
-              maxLength={500}
-              returnKeyType="send"
-              blurOnSubmit={false}
-              onSubmitEditing={handleSend}
-            />
-            <TouchableOpacity
-              style={[styles.sendBtn, !inputText.trim() && { opacity: 0.4 }]}
-              onPress={handleSend}
-              disabled={!inputText.trim()}
-            >
-              <Ionicons name="send" size={18} color={COLORS.text} />
+              <Text style={styles.label}>选择干员（至少 2 名）</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.memberList}>
+                {ALL_MEMBERS.map((m) => {
+                  const isSel = selected.includes(m.id);
+                  return (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.memberChip, isSel && styles.memberChipActive]}
+                      onPress={() => toggleMember(m.id)}
+                    >
+                      <Text style={[styles.memberChipText, isSel && styles.memberChipTextActive]}>
+                        {m.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* 预览 */}
+              <View style={styles.previewBox}>
+                <GroupAvatar memberIds={selected} size={48} />
+                <Text style={styles.previewName}>
+                  {groupName || selected.map((id) => MEMBER_NAMES[id] || id).join('、') + '的群聊'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.createBtn} onPress={handleCreate} activeOpacity={0.7}>
+              <Text style={styles.createBtnText}>创建群聊</Text>
             </TouchableOpacity>
           </View>
-        </BlurView>
-      </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bgPrimary },
-  bgImage: { ...StyleSheet.absoluteFillObject, opacity: 0.15 },
-  bgImageStyle: { resizeMode: 'cover', opacity: 0.3 },
-  bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(18,18,18,0.85)' },
-  keyboardView: { flex: 1 },
-  messageList: { paddingVertical: SPACING.md, paddingBottom: SPACING.lg },
-  timeBox: { alignItems: 'center', marginVertical: SPACING.sm },
-  timeText: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.low },
-  msgRow: { flexDirection: 'row', paddingHorizontal: SPACING.md, marginVertical: 4, maxWidth: '88%' },
-  msgRowRight: { alignSelf: 'flex-end', maxWidth: '80%' },
-  avatarCol: { alignItems: 'center', marginRight: SPACING.sm, width: 40 },
-  avatarPlaceholder: {
-    width: 32, height: 32, borderRadius: 4, borderWidth: 1.5,
-    justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+  addBtn: {
+    width: 36, height: 36, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2, justifyContent: 'center', alignItems: 'center',
   },
-  avatarLetter: { fontFamily: FONTS.serif, fontSize: 16 },
-  senderLabel: { fontFamily: FONTS.mono, fontSize: 8, marginTop: 2, letterSpacing: 0.5 },
-  bubble: {
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm + 2,
-    borderRadius: 4, borderLeftWidth: 2,
-  },
-  bubbleUser: { backgroundColor: COLORS.userBubble, borderWidth: 1, borderColor: COLORS.userBubbleBorder, borderLeftWidth: 1 },
-  bubbleAi: { backgroundColor: COLORS.aiBubble, borderWidth: 1, borderColor: COLORS.aiBubbleBorder },
-  bubbleText: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.text, lineHeight: 20 },
-  typingBox: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs },
-  typingText: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textSecondary },
-  inputBar: { paddingBottom: Platform.OS === 'ios' ? 24 : 8 },
-  inputBarLine: { height: 1, backgroundColor: COLORS.divider, marginHorizontal: SPACING.md, marginBottom: SPACING.sm },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: SPACING.md },
-  input: {
-    flex: 1, fontFamily: FONTS.sans, fontSize: 14, color: COLORS.text,
-    maxHeight: 100, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md,
-    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2,
-    borderWidth: 1, borderColor: COLORS.cardBorder,
-  },
-  sendBtn: {
-    width: 40, height: 40, backgroundColor: COLORS.primary,
-    borderRadius: 2, justifyContent: 'center', alignItems: 'center', marginLeft: SPACING.sm,
-  },
+  listContent: { paddingTop: SPACING.sm, paddingBottom: SPACING.lg },
+  groupRow: { flexDirection: 'row', alignItems: 'center' },
+  groupInfo: { flex: 1, marginLeft: SPACING.md, justifyContent: 'center' },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  groupName: { fontFamily: FONTS.serif, fontSize: 15, color: COLORS.text, flex: 1, marginRight: SPACING.sm },
+  groupTime: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.low },
+  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  memberPreview: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.textSecondary, flex: 1 },
+  badge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.accent, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  badgeText: { fontFamily: FONTS.mono, fontSize: 10, color: '#121212', fontWeight: '700' },
+  emptyBox: { paddingTop: SPACING.xl * 2, alignItems: 'center' },
+  emptyText: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.low },
+  // 创建弹窗
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalCard: { backgroundColor: COLORS.bgSecondary, borderTopLeftRadius: 12, borderTopRightRadius: 12, borderWidth: 1, borderColor: COLORS.cardBorder },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.lg, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  modalTitle: { fontFamily: FONTS.serif, fontSize: 18, color: COLORS.text },
+  modalBody: { padding: SPACING.lg },
+  label: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.low, letterSpacing: 1, textTransform: 'uppercase', marginBottom: SPACING.sm, marginTop: SPACING.md },
+  nameInput: { fontFamily: FONTS.sans, fontSize: 15, color: COLORS.text, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, borderWidth: 1, borderColor: COLORS.cardBorder },
+  memberList: { marginBottom: SPACING.md },
+  memberChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, borderWidth: 1, borderColor: COLORS.cardBorder, marginRight: SPACING.sm },
+  memberChipActive: { backgroundColor: 'rgba(74,171,234,0.2)', borderColor: COLORS.primary },
+  memberChipText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.low },
+  memberChipTextActive: { color: COLORS.primary },
+  previewBox: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.lg, padding: SPACING.md, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 4 },
+  previewName: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.textSecondary, marginLeft: SPACING.md },
+  createBtn: { backgroundColor: COLORS.accent, margin: SPACING.lg, paddingVertical: SPACING.md, borderRadius: 2, alignItems: 'center' },
+  createBtnText: { fontFamily: FONTS.sans, fontSize: 15, color: '#121212', fontWeight: '700' },
 });
+}

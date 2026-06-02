@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '17',
+    version: '1.4.0',
+    date: '2026-06-02',
+    message:
+      '💬 群聊系统升级\n• 支持创建多个群聊，自由选择干员\n• 群聊名称可自定义\n• 微信风格组合头像（2x2 网格）\n• 每个群聊独立消息记录',
+  },
+  {
     id: '16',
     version: '1.3.0',
     date: '2026-06-02',
