@@ -1,14 +1,7 @@
-import { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ArkHeader, ArkTabBar, HexAvatar, ArkListItem } from '@/components/ArkUI';
+import { ArkHeader, HexAvatar, ArkListItem } from '@/components/ArkUI';
 import { useChatStore } from '@/stores/chatStore';
 import { COLORS, FONTS, SPACING } from '@/constants/theme';
 
@@ -29,18 +22,9 @@ function formatTime(timestamp: number): string {
   });
 }
 
-export default function ChatListScreen() {
+export default function MessagesScreen() {
   const router = useRouter();
   const chats = useChatStore((s) => s.chats);
-  const [activeTab, setActiveTab] = useState('messages');
-
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    if (tab === 'settings') {
-      router.push('/settings');
-    }
-    // 'messages' 和 'terminal' 暂时保持在当前页
-  };
 
   const handleChatPress = (chatId: string) => {
     useChatStore.getState().clearUnread(chatId);
@@ -102,8 +86,6 @@ export default function ChatListScreen() {
           </View>
         }
       />
-
-      <ArkTabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </View>
   );
 }

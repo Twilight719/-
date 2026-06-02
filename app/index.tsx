@@ -32,7 +32,7 @@ export default function SplashScreen() {
     ).start();
 
     const timer = setTimeout(() => {
-      router.replace('/chat-list');
+      router.replace('/(tabs)/messages');
     }, 2500);
 
     return () => clearTimeout(timer);

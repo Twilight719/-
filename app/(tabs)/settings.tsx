@@ -147,7 +147,7 @@ export default function SettingsScreen() {
   if (!loaded) {
     return (
       <View style={styles.container}>
-        <ArkHeader title="系统设置" subtitle="SETTINGS" onBack={() => router.back()} />
+        <ArkHeader title="系统设置" subtitle="SETTINGS" />
         <View style={styles.loadingBox}>
           <Text style={styles.loadingText}>正在加载配置...</Text>
         </View>
@@ -157,7 +157,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <ArkHeader title="系统设置" subtitle="SETTINGS" onBack={() => router.back()} />
+      <ArkHeader title="系统设置" subtitle="SETTINGS" />
 
       <ScrollView
         style={styles.scroll}
