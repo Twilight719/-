@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -6,6 +6,7 @@ import { View, StyleSheet } from 'react-native';
 import { useChatStore } from '@/stores/chatStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { COLORS } from '@/constants/theme';
+import UpdateModal, { checkAndShowUpdate } from '@/components/UpdateModal';
 
 export default function RootLayout() {
   // 从本地加载字体（避免请求 Google CDN 导致国内加载失败）
@@ -17,11 +18,17 @@ export default function RootLayout() {
 
   const initChats = useChatStore((s) => s.initChats);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const [showUpdate, setShowUpdate] = useState(false);
 
   useEffect(() => {
     if (fontsLoaded) {
       initChats();
       loadSettings();
+
+      // 启动后检查是否有新更新
+      checkAndShowUpdate().then((shouldShow) => {
+        if (shouldShow) setShowUpdate(true);
+      });
     }
   }, [fontsLoaded, initChats, loadSettings]);
 
@@ -40,6 +47,12 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: COLORS.bgPrimary },
           animation: 'fade',
         }}
+      />
+
+      {/* 热更新通知弹窗 */}
+      <UpdateModal
+        visible={showUpdate}
+        onClose={() => setShowUpdate(false)}
       />
     </View>
   );
