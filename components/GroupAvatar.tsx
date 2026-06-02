@@ -9,21 +9,17 @@ interface GroupAvatarProps {
 }
 
 export default function GroupAvatar({ memberIds, size = 52 }: GroupAvatarProps) {
-  // 取前 4 个成员的头像组成 2x2 网格
   const displayMembers = memberIds.slice(0, 4);
   const cellSize = (size - 4) / 2;
+
+  const getSource = (id: string) =>
+    (MEMBER_AVATARS[id] || MEMBER_AVATARS['amiya']) as any;
 
   return (
     <View style={[styles.container, { width: size, height: size, borderRadius: 4 }]}>
       {displayMembers.length === 1 ? (
-        // 单人 → 显示单个头像
-        <Image
-          source={MEMBER_AVATARS[displayMembers[0]] || MEMBER_AVATARS['amiya']}
-          style={{ width: size, height: size }}
-          resizeMode="cover"
-        />
+        <Image source={getSource(displayMembers[0])} style={{ width: size, height: size }} resizeMode="cover" />
       ) : (
-        // 多人 → 2x2 网格
         <View style={styles.grid}>
           {[0, 1, 2, 3].map((index) => {
             const charId = displayMembers[index];
@@ -32,11 +28,7 @@ export default function GroupAvatar({ memberIds, size = 52 }: GroupAvatarProps) 
             }
             return (
               <View key={index} style={[styles.cell, { width: cellSize, height: cellSize }]}>
-                <Image
-                  source={MEMBER_AVATARS[charId] || MEMBER_AVATARS['amiya']}
-                  style={{ width: cellSize, height: cellSize }}
-                  resizeMode="cover"
-                />
+                <Image source={getSource(charId)} style={{ width: cellSize, height: cellSize }} resizeMode="cover" />
               </View>
             );
           })}

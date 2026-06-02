@@ -54,7 +54,7 @@ export default function GroupListScreen() {
 
   const handleGroupPress = (group: Group) => {
     useGroupStore.getState().clearUnread(group.id);
-    router.push(`/group-chat/${group.id}`);
+    router.push(`/group-chat/${group.id}` as any);
   };
 
   const renderGroup = ({ item }: { item: Group }) => (
@@ -200,4 +200,3 @@ const styles = StyleSheet.create({
   createBtn: { backgroundColor: COLORS.accent, margin: SPACING.lg, paddingVertical: SPACING.md, borderRadius: 2, alignItems: 'center' },
   createBtnText: { fontFamily: FONTS.sans, fontSize: 15, color: '#121212', fontWeight: '700' },
 });
-}
