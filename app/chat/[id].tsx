@@ -42,9 +42,10 @@ export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [inputText, setInputText] = useState('');
+  const [listReady, setListReady] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const readyAnim = useRef(new Animated.Value(0)).current;
   const blinkAnim = useRef(new Animated.Value(1)).current;
-  const isNearBottom = useRef(true);
 
   const messages = useChatStore((s) => s.messages[id] || []);
   const isTyping = useChatStore((s) => s.isTyping);
@@ -193,19 +194,26 @@ export default function ChatScreen() {
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.messageList}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          // 打开立即停在底部（无动画，无闪烁）
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-        />
+        <Animated.View style={{ flex: 1, opacity: readyAnim }}>
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.messageList}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            onLayout={() => {
+              flatListRef.current?.scrollToEnd({ animated: false });
+              if (!listReady) {
+                setListReady(true);
+                Animated.timing(readyAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+              }
+            }}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          />
+        </Animated.View>
 
         {/* 打字指示器 */}
         {isTyping && (

@@ -32,7 +32,9 @@ export default function GroupChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [inputText, setInputText] = useState('');
+  const [listReady, setListReady] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const readyAnim = useRef(new Animated.Value(0)).current;
   const blinkAnim = useRef(new Animated.Value(1)).current;
 
   const group = useGroupStore((s) => s.groups.find((g) => g.id === id));
@@ -109,13 +111,21 @@ export default function GroupChatScreen() {
         }
       />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.kv} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
-        <FlatList ref={flatListRef} data={messages} keyExtractor={(item) => item.id} renderItem={renderItem}
-          contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-        />
+        <Animated.View style={{ flex: 1, opacity: readyAnim }}>
+          <FlatList ref={flatListRef} data={messages} keyExtractor={(item) => item.id} renderItem={renderItem}
+            contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            onLayout={() => {
+              flatListRef.current?.scrollToEnd({ animated: false });
+              if (!listReady) {
+                setListReady(true);
+                Animated.timing(readyAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+              }
+            }}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          />
+        </Animated.View>
         {isTyping && (
           <Animated.View style={[styles.typing, { opacity: blinkAnim }]}>
             <Text style={styles.typingText}>干员们正在讨论...</Text>
