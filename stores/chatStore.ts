@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { streamChat, getFallbackReply, ChatMessage } from '@/services/deepseek';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 export interface Message {
   id: string;
@@ -33,6 +34,10 @@ export interface Character {
   class: string;
   description: string;
   tags: string[];
+  // 异格：如果有 alterId，表示这是异格版本；如果有 alterOf，表示原版ID
+  alterId?: string;   // 异格版本ID（原版→异格）
+  alterOf?: string;   // 原版ID（异格→原版）
+  alterName?: string; // 异格版本名称
 }
 
 interface ChatState {
@@ -505,7 +510,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const charName = INITIAL_CHARACTERS.find((c) => c.id === charId)?.name || '阿米娅';
       const chatId = `chat-${charId}`;
 
-      let content: string;
+      let content = '';
 
       // 尝试 AI 生成
       const settings = useSettingsStore.getState();
