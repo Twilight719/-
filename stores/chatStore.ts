@@ -126,24 +126,33 @@ const INITIAL_CHARACTERS: Character[] = [
   },
 ];
 
-// ====== 阿米娅主动发起聊天的消息池 ======
-const PROACTIVE_MESSAGES = [
-  '博士，您在吗？我有些担心今天的任务安排...',
-  '博士...我刚刚整理完战斗报告。您有空的话，我想和您讨论一下。',
-  '博士，凯尔希医生让我提醒您按时吃饭。您今天午餐吃了吗？',
-  '博士！刚才医疗部送来了新的源石检测报告，我觉得您需要看一下。',
-  '博士...我做了个奇怪的梦。是关于特蕾西娅小姐的...',
-  '天已经黑了，博士。您办公室的灯还亮着呢，请记得休息。',
-  '博士，今天的训练我表现得很好！...至少可露希尔是这么说的。',
-  '博士...您最近好像很累。如果有什么我能分担的，请一定告诉我。',
-  '博士，我泡了红茶。要来一杯吗？用的是您上次说喜欢的那种茶叶。',
-  '博士！外勤小队刚刚传回了消息。是...是关于整合运动的最新动向。',
-  '下雨了，博士。我帮您把窗户关上了。您在办公室吗？',
-  '博士，今天有新人干员报到。我陪ta参观了本舰，ta说很期待见到您。',
-];
+// ====== 干员主动消息（回退用） ======
+const PROACTIVE_FALLBACK: Record<string, string[]> = {
+  amiya: [
+    '博士，您在吗？我有些担心今天的任务安排...',
+    '博士...我泡了红茶，要来一杯吗？',
+    '博士！外勤小队刚刚传回了消息。',
+  ],
+  kaltsit: [
+    '你的体检报告过期了。来医疗部一趟。',
+    '博士，医疗部的季度报告需要你签字。',
+    '哼...你又熬夜了。我在监控里看到了。',
+  ],
+  mon3tr: [
+    '博士！Mon3tr发现了一个奇怪的东西...可以吃吗？',
+    '博士博士，凯尔希今天夸我了！...应该是夸吧。',
+    '博士...Mon3tr有点无聊。可以去找你玩吗？',
+  ],
+  closure: [
+    '博士~新品上市！今天只要998龙门币！',
+    '博士！我发明了一个会自动泡咖啡的无人机！...就是偶尔会爆炸。',
+    '博士~工程部预算能不能再批一点嘛~',
+  ],
+};
 
-function getRandomProactiveMessage(): string {
-  return PROACTIVE_MESSAGES[Math.floor(Math.random() * PROACTIVE_MESSAGES.length)];
+function getFallbackProactive(charId: string): string {
+  const pool = PROACTIVE_FALLBACK[charId] || PROACTIVE_FALLBACK['amiya'];
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // ====== 默认 Amiya 聊天（首次使用时创建） ======
@@ -478,73 +487,95 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // 检查是否应该发送阿米娅的主动消息（每天 2-3 次）
   checkProactiveMessage: async () => {
     try {
-      const raw = await AsyncStorage.getItem(STORAGE_PROACTIVE);
-      const lastTime = raw ? parseInt(raw, 10) : 0;
-      const now = Date.now();
-      const eightHours = 8 * 60 * 60 * 1000;
+      const now = new Date();
+      const hour = now.getHours();
+
+      // 夜间静默：23:00 ~ 09:00 不打扰博士
+      if (hour >= 23 || hour < 9) return false;
 
       // 距离上次主动消息超过 8 小时
-      if (now - lastTime > eightHours) {
-        const proactiveMsg = getRandomProactiveMessage();
+      const raw = await AsyncStorage.getItem(STORAGE_PROACTIVE);
+      const lastTime = raw ? parseInt(raw, 10) : 0;
+      const eightHours = 8 * 60 * 60 * 1000;
+      if (now.getTime() - lastTime <= eightHours) return false;
 
-        // 确保阿米娅的聊天存在
-        const chats = get().chats;
-        let amiyaChat = chats.find((c) => c.id === 'chat-amiya');
-        if (!amiyaChat) {
-          amiyaChat = createDefaultChat('amiya');
-        }
+      // 随机选一位干员
+      const charIds = ['amiya', 'kaltsit', 'mon3tr', 'closure'];
+      const charId = charIds[Math.floor(Math.random() * charIds.length)];
+      const charName = INITIAL_CHARACTERS.find((c) => c.id === charId)?.name || '阿米娅';
+      const chatId = `chat-${charId}`;
 
-        const newAiMessage: Message = {
-          id: `m-proactive-${Date.now()}`,
-          chatId: 'chat-amiya',
-          sender: 'ai',
-          content: proactiveMsg,
-          timestamp: Date.now(),
-        };
+      let content: string;
 
-        set((state) => {
-          const updated = {
-            messages: {
-              ...state.messages,
-              'chat-amiya': [
-                ...(state.messages['chat-amiya'] || []),
-                newAiMessage,
-              ],
-            },
-            chats: state.chats.map((chat) =>
-              chat.id === 'chat-amiya'
-                ? {
-                    ...chat,
-                    lastMessage: proactiveMsg,
-                    lastMessageTime: Date.now(),
-                    unreadCount: chat.unreadCount + 1,
-                  }
-                : chat
-            ),
+      // 尝试 AI 生成
+      const settings = useSettingsStore.getState();
+      const config = settings.flash;
+      if (config.apiKey.trim()) {
+        try {
+          const timeStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${String(hour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          const charPrompts: Record<string, string> = {
+            amiya: '你正在以阿米娅的身份给博士发一条主动消息。温柔、关心，1-2句话。不要超过50字。',
+            kaltsit: '你正在以凯尔希的身份给博士发一条主动消息。冷淡、专业、嘴硬心软。1-2句。不要超过50字。',
+            mon3tr: '你正在以Mon3tr的身份给博士发一条主动消息。孩子般直率、好奇。1-2句。不要超过50字。',
+            closure: '你正在以可露希尔的身份给博士发一条主动消息。元气、带推销或发明话题。1-2句。不要超过50字。',
           };
-          // 如果阿米娅聊天不在列表中，创建它
-          if (!state.chats.find((c) => c.id === 'chat-amiya')) {
-            updated.chats = [
-              {
-                ...createDefaultChat('amiya'),
-                lastMessage: proactiveMsg,
-                lastMessageTime: Date.now(),
-                unreadCount: 1,
-              },
-              ...updated.chats,
-            ];
-          }
-          saveMessages(updated.messages);
-          saveChats(updated.chats);
-          return updated;
-        });
 
-        // 记录本次主动消息时间
-        await AsyncStorage.setItem(STORAGE_PROACTIVE, String(now));
-        return true;
+          const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+            body: JSON.stringify({
+              model: config.model,
+              messages: [
+                { role: 'system', content: `${charPrompts[charId] || charPrompts['amiya']}\n当前时间：${timeStr}\n根据时间和干员性格生成一条自然的主动消息，不要重复之前的消息。` },
+                { role: 'user', content: '请给博士发一条消息。' },
+              ],
+              stream: false, temperature: 1.0, max_tokens: 80,
+            }),
+          });
+          if (resp.ok) {
+            const json = await resp.json();
+            content = json.choices?.[0]?.message?.content?.trim() || '';
+          }
+        } catch {}
       }
+
+      // AI 失败 → 回退
+      if (!content || content.length < 2) {
+        content = getFallbackProactive(charId);
+      }
+
+      const newMsg: Message = {
+        id: `m-proactive-${Date.now()}`,
+        chatId, sender: 'ai', content, timestamp: Date.now(),
+      };
+
+      set((state) => {
+        const chatExists = state.chats.find((c) => c.id === chatId);
+        const updated = {
+          messages: {
+            ...state.messages,
+            [chatId]: [...(state.messages[chatId] || []), newMsg],
+          },
+          chats: state.chats.map((chat) =>
+            chat.id === chatId
+              ? { ...chat, lastMessage: content, lastMessageTime: Date.now(), unreadCount: chat.unreadCount + 1 }
+              : chat
+          ),
+        };
+        if (!chatExists) {
+          const newChat = createDefaultChat(charId);
+          updated.chats = [{ ...newChat, lastMessage: content, lastMessageTime: Date.now(), unreadCount: 1 }, ...updated.chats];
+        }
+        saveMessages(updated.messages);
+        saveChats(updated.chats);
+        return updated;
+      });
+
+      await AsyncStorage.setItem(STORAGE_PROACTIVE, String(now.getTime()));
+      return true;
     } catch (e) {
-      console.error('[ChatStore] 主动消息检查失败:', e);
+      console.error('[ChatStore] 主动消息:', e);
     }
     return false;
   },
