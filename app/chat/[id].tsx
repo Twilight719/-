@@ -50,18 +50,6 @@ export default function ChatScreen() {
   const isTyping = useChatStore((s) => s.isTyping);
   const chat = useChatStore((s) => s.chats.find((c) => c.id === id));
   const sendMessage = useChatStore((s) => s.sendMessage);
-  const switchAlter = useChatStore((s) => s.switchAlter);
-  const characters = useChatStore((s) => s.characters);
-
-  // 异格判断（用 useMemo 避免每次渲染都遍历）
-  const alterInfo = React.useMemo(() => {
-    const c = characters.find((ch) => ch.id === chat?.characterId);
-    if (!c) return { hasAlter: false, alterName: null as string | null, isAlter: false };
-    const targetId = c.alterId || c.alterOf;
-    if (!targetId) return { hasAlter: false, alterName: null as string | null, isAlter: false };
-    const target = characters.find((ch) => ch.id === targetId);
-    return { hasAlter: true, alterName: target?.name || null, isAlter: !!c.alterOf };
-  }, [chat?.characterId, characters]);
 
   // 自动滚动到底部（新消息到达时）
   const scrollToEnd = useCallback((animated = true) => {
@@ -158,23 +146,10 @@ export default function ChatScreen() {
 
       <ArkHeader
         title={chat?.characterName || '通讯中'}
-        subtitle={
-          alterInfo.hasAlter
-            ? `切换：${alterInfo.isAlter ? '←原版' : '异格→'} (${alterInfo.alterName})`
-            : (chat?.online ? 'ONLINE' : 'OFFLINE')
-        }
+        subtitle={chat?.online ? 'ONLINE' : 'OFFLINE'}
         onBack={() => router.back()}
         rightAction={
           <View style={styles.headerRight}>
-            {alterInfo.hasAlter && (
-              <TouchableOpacity
-                style={styles.alterBtn}
-                onPress={() => switchAlter(id)}
-                activeOpacity={0.6}
-              >
-                <Ionicons name="swap-horizontal" size={18} color={COLORS.accent} />
-              </TouchableOpacity>
-            )}
             <ModelIndicator />
             <TouchableOpacity style={styles.moreBtn}>
               <Ionicons
