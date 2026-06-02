@@ -239,6 +239,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     }
 
+    // 迁移：确保所有默认干员聊天都存在（旧版本升级）
+    const requiredChats = ['chat-amiya', 'chat-kaltsit'];
+    for (const requiredChatId of requiredChats) {
+      if (!persistedChats.find((c) => c.id === requiredChatId)) {
+        const charId = requiredChatId.replace('chat-', '');
+        persistedChats.push(createDefaultChat(charId));
+        if (!persistedMessages[requiredChatId]) {
+          persistedMessages[requiredChatId] = [];
+        }
+      }
+    }
+
     set({
       chats: persistedChats,
       messages: persistedMessages,

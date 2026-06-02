@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '14',
+    version: '1.2.1',
+    date: '2026-06-02',
+    message:
+      '🔧 修复部分用户凯尔希聊天不显示\n• 添加旧版本数据迁移逻辑\n• 确保升级后凯尔希自动出现',
+  },
+  {
     id: '13',
     version: '1.2.0',
     date: '2026-06-02',
