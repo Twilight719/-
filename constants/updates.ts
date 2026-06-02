@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '15',
+    version: '1.2.2',
+    date: '2026-06-02',
+    message:
+      '🎨 凯尔希头像裁剪优化\n• 正方形脸部特写，不再使用全身照\n• 统一干员头像规范：需裁剪上半身',
+  },
+  {
     id: '14',
     version: '1.2.1',
     date: '2026-06-02',
