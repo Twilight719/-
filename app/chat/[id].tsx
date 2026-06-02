@@ -191,7 +191,7 @@ export default function ChatScreen() {
         {/* 打字指示器 */}
         {isTyping && (
           <Animated.View style={[styles.typingBox, { opacity: blinkAnim }]}>
-            <Text style={styles.typingText}>阿米娅正在整理思绪...</Text>
+            <Text style={styles.typingText}>{chat?.characterName || '干员'}正在整理思绪...</Text>
           </Animated.View>
         )}
 
