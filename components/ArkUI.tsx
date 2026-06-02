@@ -266,17 +266,67 @@ export function ArkListItem({
   return content;
 }
 
-// 聊天气泡
+// 聊天气泡（AI 消息支持打字机动画）
 export function ChatBubble({
   sender,
   content,
   avatar,
+  animateTyping = false,
 }: {
   sender: 'user' | 'ai';
   content: string;
   avatar?: string | number;
+  animateTyping?: boolean;
 }) {
   const isUser = sender === 'user';
+  const [displayed, setDisplayed] = React.useState('');
+  const displayedRef = React.useRef('');
+
+  React.useEffect(() => {
+    // 用户消息立即显示
+    if (isUser) {
+      setDisplayed(content);
+      displayedRef.current = content;
+      return;
+    }
+
+    // AI 消息：流式更新时实时显示，非流式时打字机动画
+    if (!animateTyping) {
+      // 非打字模式（已完成的消息）→ 立即显示
+      setDisplayed(content);
+      displayedRef.current = content;
+      return;
+    }
+
+    // 打字模式：逐字显示新增的内容
+    if (content.startsWith(displayedRef.current)) {
+      // 流式追加中，直接显示
+      setDisplayed(content);
+      displayedRef.current = content;
+    } else if (content.length > displayedRef.current.length) {
+      // 新内容到达，逐字动画
+      const newContent = content;
+      const startLen = displayedRef.current.length;
+      let pos = startLen;
+      const timer = setInterval(() => {
+        pos++;
+        if (pos <= newContent.length) {
+          const partial = newContent.slice(0, pos);
+          setDisplayed(partial);
+          displayedRef.current = partial;
+        } else {
+          clearInterval(timer);
+        }
+      }, 30); // 每 30ms 一个字符，模拟打字
+      return () => clearInterval(timer);
+    } else {
+      // 内容没变或变短（不应发生，但做保护）
+      setDisplayed(content);
+      displayedRef.current = content;
+    }
+  }, [content, isUser, animateTyping]);
+
+  const showCursor = animateTyping && sender === 'ai' && displayed.length > 0;
 
   return (
     <View
@@ -297,7 +347,10 @@ export function ChatBubble({
         ]}
       >
         <Text style={[styles.bubbleText, { fontFamily: FONTS.sans }]}>
-          {content}
+          {isUser ? content : displayed}
+          {showCursor && (
+            <Text style={styles.typingCursor}> ▌</Text>
+          )}
         </Text>
       </View>
     </View>
@@ -483,6 +536,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text,
     lineHeight: 20,
+  },
+  typingCursor: {
+    color: COLORS.accent,
+    fontWeight: '700',
   },
   tag: {
     flexDirection: 'row',

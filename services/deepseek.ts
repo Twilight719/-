@@ -236,7 +236,15 @@ export async function* streamChat(
       const json = await response.json();
       const content = json.choices?.[0]?.message?.content;
       if (content) {
-        yield { type: 'content', data: content };
+        // 模拟打字机：每次 yield 1~3 个字符
+        let pos = 0;
+        while (pos < content.length) {
+          const chunkSize = Math.min(2 + Math.floor(Math.random() * 2), content.length - pos);
+          yield { type: 'content', data: content.slice(pos, pos + chunkSize) };
+          pos += chunkSize;
+          // 小延迟模拟打字速度
+          await new Promise((r) => setTimeout(r, 20 + Math.random() * 30));
+        }
       } else {
         throw new Error('NO_CONTENT');
       }

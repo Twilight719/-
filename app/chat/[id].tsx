@@ -6,11 +6,10 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  KeyboardAvoidingView,
   Platform,
   ImageBackground,
   Animated,
-  Keyboard,
-  KeyboardEvent,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,16 +44,26 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const blinkAnim = useRef(new Animated.Value(1)).current;
-  const inputRef = useRef<TextInput>(null);
-
-  // 手动管理键盘高度（避免 Android behavior="height" 与中文输入法的兼容问题）
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const isKeyboardShown = useRef(false);
+  const isNearBottom = useRef(true);
 
   const messages = useChatStore((s) => s.messages[id] || []);
   const isTyping = useChatStore((s) => s.isTyping);
   const chat = useChatStore((s) => s.chats.find((c) => c.id === id));
   const sendMessage = useChatStore((s) => s.sendMessage);
+
+  // 自动滚动到底部（新消息到达时）
+  const scrollToEnd = useCallback((animated = true) => {
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated });
+    }, 80);
+  }, []);
+
+  // 监听消息变化 → 自动滚到底部
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToEnd(true);
+    }
+  }, [messages.length, messages[messages.length - 1]?.content.length, scrollToEnd]);
 
   useEffect(() => {
     if (id) {
@@ -65,37 +74,6 @@ export default function ChatScreen() {
       useChatStore.getState().setActiveChat(null);
     };
   }, [id]);
-
-  // 键盘事件监听
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e: KeyboardEvent) => {
-        // 只在第一次显示时记录，避免输入法切换候选栏高度变化时抖动
-        if (!isKeyboardShown.current) {
-          setKeyboardHeight(e.endCoordinates.height);
-          isKeyboardShown.current = true;
-        }
-        // 键盘弹出后滚动到底部
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
-    );
-
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
-        isKeyboardShown.current = false;
-      }
-    );
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   useEffect(() => {
     if (isTyping) {
@@ -133,6 +111,8 @@ export default function ChatScreen() {
     index: number;
   }) => {
     const showTime = shouldShowTime(messages, index);
+    const isLast = index === messages.length - 1;
+
     return (
       <View>
         {showTime && (
@@ -146,13 +126,11 @@ export default function ChatScreen() {
           sender={item.sender}
           content={item.content}
           avatar={chat?.avatar}
+          animateTyping={isLast && item.sender === 'ai' && isTyping}
         />
       </View>
     );
   };
-
-  // iOS 状态栏高度约 44，加上 ArkHeader 高度约 56 = 100
-  const headerHeight = Platform.OS === 'ios' ? 100 : 56;
 
   return (
     <View style={styles.container}>
@@ -184,49 +162,46 @@ export default function ChatScreen() {
         }
       />
 
-      {/* 消息列表 */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={[
-          styles.messageList,
-          // 底部留出输入栏的空间
-          { paddingBottom: SPACING.lg + 60 + keyboardHeight },
-        ]}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
-        onLayout={() =>
-          flatListRef.current?.scrollToEnd({ animated: false })
-        }
-        // 点击消息区域收起键盘
-        keyboardShouldPersistTaps="handled"
-      />
-
-      {/* 打字指示器 */}
-      {isTyping && (
-        <Animated.View style={[styles.typingBox, { opacity: blinkAnim }]}>
-          <Text style={styles.typingText}>阿米娅正在整理思绪...</Text>
-        </Animated.View>
-      )}
-
-      <ProBanner />
-
-      {/* 输入栏 - 使用绝对定位确保始终在底部 */}
-      <View
-        style={[
-          styles.inputBarContainer,
-          { bottom: keyboardHeight },
-        ]}
+      {/* 主体：Android 不用 behavior 由系统 adjustResize 处理 */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.messageList}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => scrollToEnd(true)}
+          onLayout={() => scrollToEnd(false)}
+          keyboardShouldPersistTaps="handled"
+          // 检测用户是否手动滚离底部
+          onScroll={(e) => {
+            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+            const distanceFromBottom =
+              contentSize.height - contentOffset.y - layoutMeasurement.height;
+            isNearBottom.current = distanceFromBottom < 80;
+          }}
+          scrollEventThrottle={100}
+        />
+
+        {/* 打字指示器 */}
+        {isTyping && (
+          <Animated.View style={[styles.typingBox, { opacity: blinkAnim }]}>
+            <Text style={styles.typingText}>阿米娅正在整理思绪...</Text>
+          </Animated.View>
+        )}
+
+        <ProBanner />
+
+        {/* 输入栏 */}
         <BlurView intensity={30} tint="dark" style={styles.inputBar}>
           <View style={styles.inputBarLine} />
           <View style={styles.inputRow}>
             <TextInput
-              ref={inputRef}
               value={inputText}
               onChangeText={setInputText}
               placeholder="输入消息..."
@@ -250,7 +225,7 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
         </BlurView>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -283,9 +258,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  keyboardView: {
+    flex: 1,
+  },
   messageList: {
-    paddingHorizontal: 0,
-    paddingTop: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingBottom: SPACING.lg,
   },
   timeBox: {
     alignItems: 'center',
@@ -299,22 +277,11 @@ const styles = StyleSheet.create({
   typingBox: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 70, // 输入栏上方
   },
   typingText: {
     fontFamily: FONTS.mono,
     fontSize: 11,
     color: COLORS.textSecondary,
-  },
-  inputBarContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    // 过渡动画的关键：动态 bottom 值
   },
   inputBar: {
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,
@@ -351,6 +318,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: SPACING.sm,
-    marginBottom: 0,
   },
 });
