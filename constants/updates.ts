@@ -11,6 +11,20 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '12',
+    version: '1.1.2',
+    date: '2026-06-02',
+    message:
+      '🕐 简化时间上下文\n• 移除冗余情境描写（环境/状态/情绪）\n• 仅注入当前日期时间\n• 阿米娅自然感知时间并自由回应',
+  },
+  {
+    id: '11',
+    version: '1.1.1',
+    date: '2026-06-02',
+    message:
+      '🔧 修复消息页头像显示\n• 修复热更新后 asset ID 变动导致头像空白\n• 头像现在始终使用当前 bundle 资源\n• 添加头像加载失败时的占位图标',
+  },
+  {
     id: '10',
     version: '1.1.0',
     date: '2026-06-02',
