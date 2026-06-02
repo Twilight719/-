@@ -92,6 +92,83 @@ async function loadAllMessages(): Promise<Record<string, GroupMessage[]>> {
   try { const raw = await AsyncStorage.getItem(STORAGE_GROUP_MSGS); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 }
 
+// 干员自主交流（最多2轮，无博士参与时自动结束）
+async function generateOperatorExchange(groupId: string, memberIds: string[], config: any) {
+  const state = useGroupStore.getState();
+  const memberList = memberIds.map((id: string) => MEMBER_NAMES[id] || id).join('、');
+
+  for (let round = 0; round < 2; round++) {
+    try {
+      const recentMsgs = (state.messages[groupId] || []).slice(-6).map((m) => ({
+        role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: `${m.senderName}：${m.content.slice(0, 100)}`,
+      }));
+
+      const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+      const response = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+        body: JSON.stringify({
+          model: config.model, messages: [
+            { role: 'system', content: `【罗德岛群聊 - 干员自主交流 第${round + 1}/2轮】
+成员：${memberList}
+当前群聊中的干员正在交谈。请让其中一位干员（不是博士）发出一句自然的回应。
+规则：
+- 回应要简短自然（1-2句）
+- 可以是对上一句话的评论、吐槽、或者提出新话题
+- ${round === 1 ? '这可能是最后一轮对话，让干员自然地结束对话，比如"我得去工作了"或"回头再聊"' : ''}
+- 格式：干员名：内容` },
+            ...recentMsgs,
+          ],
+          stream: false, temperature: 0.9, max_tokens: 120,
+        }),
+      });
+
+      if (!response.ok) break;
+      const json = await response.json();
+      const reply = json.choices?.[0]?.message?.content || '';
+      if (!reply.trim()) break;
+
+      const senderName = reply.includes('：') ? reply.split('：')[0].trim() : (MEMBER_NAMES[memberIds[0]] || '阿米娅');
+      const clean = reply.includes('：') ? reply.split('：').slice(1).join('：').trim() : reply;
+
+      const aiMsg: GroupMessage = {
+        id: `g-auto-${Date.now()}-${round}`, groupId, sender: 'ai',
+        senderName, characterId: memberIds.find((id) => MEMBER_NAMES[id] === senderName),
+        content: '', timestamp: Date.now(),
+      };
+
+      // 添加到 store
+      useGroupStore.setState((s) => ({
+        messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), aiMsg] },
+        isTyping: true, typingGroupId: groupId,
+      }));
+
+      // 打字机效果
+      for (let i = 1; i <= clean.length; i++) {
+        useGroupStore.setState((s) => {
+          const msgs = [...(s.messages[groupId] || [])];
+          const last = msgs[msgs.length - 1];
+          if (last.id === aiMsg.id) msgs[msgs.length - 1] = { ...last, content: clean.slice(0, i) };
+          return { messages: { ...s.messages, [groupId]: msgs } };
+        });
+        await new Promise((r) => setTimeout(r, 20 + Math.random() * 20));
+      }
+
+      // 更新最后消息
+      useGroupStore.setState((s) => ({
+        groups: s.groups.map((g) => g.id === groupId ? { ...g, lastMessage: senderName + '：' + clean.slice(0, 30), lastMessageTime: Date.now() } : g),
+        isTyping: false, typingGroupId: null,
+      }));
+
+    } catch { break; }
+  }
+
+  // 保存
+  const final = useGroupStore.getState();
+  saveAllMessages(final.messages);
+  saveGroups(final.groups);
+}
+
 // ====== Store ======
 interface GroupState {
   groups: Group[];
@@ -100,6 +177,9 @@ interface GroupState {
   typingGroupId: string | null;
   initGroups: () => Promise<void>;
   createGroup: (name: string, memberIds: string[]) => Promise<Group>;
+  addMembers: (groupId: string, memberIds: string[]) => void;
+  removeMember: (groupId: string, memberId: string) => void;
+  renameGroup: (groupId: string, name: string) => void;
   sendMessage: (groupId: string, content: string) => Promise<void>;
   clearUnread: (groupId: string) => void;
 }
@@ -243,6 +323,11 @@ export const useGroupStore = create<GroupState>((set, get) => ({
       });
       saveAllMessages(get().messages);
       saveGroups(get().groups);
+
+      // 干员自主交流：最多 2 轮跟进
+      if (group.memberIds.length >= 2) {
+        await generateOperatorExchange(groupId, group.memberIds, config);
+      }
     } catch {
       const aiMsg: GroupMessage = {
         id: `g-${Date.now()}-ai`, groupId, sender: 'ai',
@@ -265,6 +350,50 @@ export const useGroupStore = create<GroupState>((set, get) => ({
 
   clearUnread: (groupId: string) => {
     set((s) => ({ groups: s.groups.map((g) => g.id === groupId ? { ...g, unreadCount: 0 } : g) }));
+  },
+
+  addMembers: (groupId: string, memberIds: string[]) => {
+    set((s) => {
+      const updated = s.groups.map((g) => {
+        if (g.id !== groupId) return g;
+        const newMemberIds = [...new Set([...g.memberIds, ...memberIds])];
+        const addedNames = memberIds.map((id) => MEMBER_NAMES[id] || id).join('、');
+        const sysMsg: GroupMessage = {
+          id: `gs-${Date.now()}`, groupId, sender: 'ai', senderName: '系统',
+          content: `—— ${addedNames} 已加入群聊 ——`, timestamp: Date.now(),
+        };
+        return { ...g, memberIds: newMemberIds, lastMessage: sysMsg.content, lastMessageTime: Date.now() };
+      });
+      saveGroups(updated);
+      return { groups: updated, messages: { ...s.messages } };
+    });
+  },
+
+  removeMember: (groupId: string, memberId: string) => {
+    set((s) => {
+      const updated = s.groups.map((g) => {
+        if (g.id !== groupId || g.memberIds.length <= 2) return g;
+        const newMemberIds = g.memberIds.filter((id) => id !== memberId);
+        const name = MEMBER_NAMES[memberId] || memberId;
+        const sysMsg: GroupMessage = {
+          id: `gs-${Date.now()}`, groupId, sender: 'ai', senderName: '系统',
+          content: `—— ${name} 已离开群聊 ——`, timestamp: Date.now(),
+        };
+        return { ...g, memberIds: newMemberIds, lastMessage: sysMsg.content, lastMessageTime: Date.now() };
+      });
+      saveGroups(updated);
+      return { groups: updated, messages: { ...s.messages } };
+    });
+  },
+
+  renameGroup: (groupId: string, name: string) => {
+    set((s) => {
+      const updated = s.groups.map((g) =>
+        g.id === groupId ? { ...g, name } : g
+      );
+      saveGroups(updated);
+      return { groups: updated };
+    });
   },
 }));
 

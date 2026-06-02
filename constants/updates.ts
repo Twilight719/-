@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '19',
+    version: '1.5.0',
+    date: '2026-06-02',
+    message:
+      '💬 群聊编辑 + 干员自主交流\n• 群聊可改名、添加/移除成员\n• 干员之间自动互动（最多2轮）\n• 博士不发言时对话自然结束',
+  },
+  {
     id: '18',
     version: '1.4.1',
     date: '2026-06-02',

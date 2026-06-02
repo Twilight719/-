@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ImageBackground, Animated,
+  KeyboardAvoidingView, Platform, ImageBackground, Animated, Modal, ScrollView, Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,13 @@ import { BlurView } from 'expo-blur';
 import { ArkHeader } from '@/components/ArkUI';
 import { useGroupStore, GroupMessage, MEMBER_NAMES } from '@/stores/groupStore';
 import { COLORS, FONTS, SPACING } from '@/constants/theme';
+
+const ALL_MEMBERS = [
+  { id: 'amiya', name: '阿米娅' },
+  { id: 'kaltsit', name: '凯尔希' },
+  { id: 'mon3tr', name: 'Mon3tr' },
+  { id: 'closure', name: '可露希尔' },
+];
 
 const CHAT_BG = require('../../assets/characters/amiya_bg.png');
 
@@ -32,6 +39,12 @@ export default function GroupChatScreen() {
   const messages = useGroupStore((s) => s.messages[id] || []);
   const isTyping = useGroupStore((s) => s.isTyping && s.typingGroupId === id);
   const sendMessage = useGroupStore((s) => s.sendMessage);
+  const addMembers = useGroupStore((s) => s.addMembers);
+  const removeMember = useGroupStore((s) => s.removeMember);
+  const renameGroup = useGroupStore((s) => s.renameGroup);
+
+  const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState('');
 
   useEffect(() => {
     if (id) useGroupStore.getState().clearUnread(id);
@@ -86,6 +99,14 @@ export default function GroupChatScreen() {
         title={group?.name || '群聊'}
         subtitle={group ? `${group.memberIds.length} 人` : ''}
         onBack={() => router.back()}
+        rightAction={
+          <TouchableOpacity style={styles.editBtn} onPress={() => {
+            setEditName(group?.name || '');
+            setShowEdit(true);
+          }}>
+            <Ionicons name="settings-outline" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+        }
       />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.kv} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <FlatList ref={flatListRef} data={messages} keyExtractor={(item) => item.id} renderItem={renderItem}
@@ -110,6 +131,60 @@ export default function GroupChatScreen() {
           </View>
         </BlurView>
       </KeyboardAvoidingView>
+
+      {/* 编辑群聊弹窗 */}
+      <Modal visible={showEdit} transparent animationType="slide" statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>编辑群聊</Text>
+              <TouchableOpacity onPress={() => setShowEdit(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.modalLabel}>群聊名称</Text>
+              <TextInput value={editName} onChangeText={setEditName}
+                placeholder={group?.name || '群聊名称'} placeholderTextColor={COLORS.low}
+                style={styles.modalInput} maxLength={20} />
+              <TouchableOpacity style={styles.renameBtn} onPress={() => {
+                if (editName.trim()) { renameGroup(id, editName.trim()); Alert.alert('已更新', '群聊名称已修改'); }
+              }}>
+                <Text style={styles.renameBtnText}>修改名称</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.modalLabel}>当前成员</Text>
+              {group?.memberIds.map((mid) => (
+                <View key={mid} style={styles.memberRow}>
+                  <Text style={styles.memberName}>{MEMBER_NAMES[mid] || mid}</Text>
+                  {group.memberIds.length > 2 && (
+                    <TouchableOpacity onPress={() => removeMember(id, mid)}>
+                      <Ionicons name="remove-circle-outline" size={20} color={COLORS.danger} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+
+              <Text style={styles.modalLabel}>添加成员</Text>
+              <View style={styles.addList}>
+                {ALL_MEMBERS.filter((m) => !group?.memberIds.includes(m.id)).map((m) => (
+                  <TouchableOpacity key={m.id} style={styles.addChip} onPress={() => {
+                    addMembers(id, [m.id]);
+                    Alert.alert('已添加', `${m.name} 已加入群聊`);
+                  }}>
+                    <Ionicons name="add-circle-outline" size={16} color={COLORS.accent} />
+                    <Text style={styles.addChipText}>{m.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {ALL_MEMBERS.filter((m) => !group?.memberIds.includes(m.id)).length === 0 && (
+                <Text style={styles.noMoreText}>所有干员已在群聊中</Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -137,4 +212,21 @@ const styles = StyleSheet.create({
   barRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: SPACING.md },
   input: { flex: 1, fontFamily: FONTS.sans, fontSize: 14, color: COLORS.text, maxHeight: 100, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, borderWidth: 1, borderColor: COLORS.cardBorder },
   sendBtn: { width: 40, height: 40, backgroundColor: COLORS.primary, borderRadius: 2, justifyContent: 'center', alignItems: 'center', marginLeft: SPACING.sm },
+  editBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+  // 编辑弹窗
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalCard: { backgroundColor: COLORS.bgSecondary, borderTopLeftRadius: 12, borderTopRightRadius: 12, borderWidth: 1, borderColor: COLORS.cardBorder, maxHeight: '80%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.lg, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  modalTitle: { fontFamily: FONTS.serif, fontSize: 18, color: COLORS.text },
+  modalBody: { padding: SPACING.lg },
+  modalLabel: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.low, letterSpacing: 1, textTransform: 'uppercase', marginTop: SPACING.md, marginBottom: SPACING.sm },
+  modalInput: { fontFamily: FONTS.sans, fontSize: 15, color: COLORS.text, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, borderWidth: 1, borderColor: COLORS.cardBorder },
+  renameBtn: { backgroundColor: COLORS.primary, paddingVertical: SPACING.sm, borderRadius: 2, marginTop: SPACING.sm, alignItems: 'center' },
+  renameBtnText: { fontFamily: FONTS.sans, fontSize: 13, color: '#fff', fontWeight: '700' },
+  memberRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.sm, paddingHorizontal: SPACING.sm, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 4, marginBottom: 4 },
+  memberName: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.text },
+  addList: { flexDirection: 'row', flexWrap: 'wrap' },
+  addChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, backgroundColor: 'rgba(216,221,90,0.08)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(216,221,90,0.2)', marginRight: SPACING.sm, marginBottom: SPACING.sm },
+  addChipText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.accent, marginLeft: 4 },
+  noMoreText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.low, textAlign: 'center', marginTop: SPACING.md },
 });
