@@ -58,21 +58,41 @@ const STORAGE_MESSAGES = '@rhodes_messages_v2';
 const STORAGE_PROACTIVE = '@rhodes_last_proactive';
 
 // ====== 角色数据 ======
-const CHARACTER_AVATAR = require('../assets/characters/amiya_avatar.png');
-const CHARACTER_FULL = require('../assets/characters/amiya_full.png');
+const AMIYA_AVATAR = require('../assets/characters/amiya_avatar.png');
+const AMIYA_FULL = require('../assets/characters/amiya_full.png');
+const KALTSIT_AVATAR = require('../assets/characters/kaltsit_avatar.webp');
+const KALTSIT_FULL = require('../assets/characters/kaltsit_full.webp');
+
+// 角色头像映射表（供加载时修复 asset ID）
+const CHARACTER_AVATARS: Record<string, ReturnType<typeof require>> = {
+  amiya: AMIYA_AVATAR,
+  kaltsit: KALTSIT_AVATAR,
+};
 
 const INITIAL_CHARACTERS: Character[] = [
   {
     id: 'amiya',
     name: '阿米娅',
-    avatar: CHARACTER_AVATAR,
-    fullImage: CHARACTER_FULL,
+    avatar: AMIYA_AVATAR,
+    fullImage: AMIYA_FULL,
     codeName: 'Amiya',
     race: '卡特斯',
     origin: '雷姆必拓',
     class: '术师/近卫',
     description: '罗德岛公开领袖，拥有极高的源石技艺适应性。',
     tags: ['公开领袖', '术师', '近卫'],
+  },
+  {
+    id: 'kaltsit',
+    name: '凯尔希',
+    avatar: KALTSIT_AVATAR,
+    fullImage: KALTSIT_FULL,
+    codeName: "Kal'tsit",
+    race: '菲林',
+    origin: '未知',
+    class: '医疗',
+    description: '罗德岛医疗部负责人，矿石病研究专家。冷静理性，医术精湛。',
+    tags: ['医疗', '管理者', '前巴别塔'],
   },
 ];
 
@@ -97,13 +117,26 @@ function getRandomProactiveMessage(): string {
 }
 
 // ====== 默认 Amiya 聊天（首次使用时创建） ======
-function createDefaultAmiyaChat(): Chat {
+function createDefaultChat(charId: string): Chat {
+  const char = INITIAL_CHARACTERS.find((c) => c.id === charId);
+  if (charId === 'amiya') {
+    return {
+      id: 'chat-amiya',
+      characterId: 'amiya',
+      characterName: '阿米娅',
+      avatar: AMIYA_AVATAR,
+      lastMessage: '博士，通讯终端已就绪。随时可以开始对话。',
+      lastMessageTime: Date.now(),
+      unreadCount: 0,
+      online: true,
+    };
+  }
   return {
-    id: 'chat-amiya',
-    characterId: 'amiya',
-    characterName: '阿米娅',
-    avatar: CHARACTER_AVATAR,
-    lastMessage: '博士，通讯终端已就绪。随时可以开始对话。',
+    id: 'chat-kaltsit',
+    characterId: 'kaltsit',
+    characterName: '凯尔希',
+    avatar: KALTSIT_AVATAR,
+    lastMessage: '医疗部通讯已接通。有事直说。',
     lastMessageTime: Date.now(),
     unreadCount: 0,
     online: true,
@@ -150,7 +183,7 @@ async function loadChats(): Promise<Chat[]> {
       // 强制刷新 avatar 为当前 asset ID（require() 在每次打包/热更后 ID 会变）
       return chats.map((chat) => ({
         ...chat,
-        avatar: CHARACTER_AVATAR,
+        avatar: CHARACTER_AVATARS[chat.characterId] || AMIYA_AVATAR,
       }));
     }
   } catch (e) {
@@ -186,10 +219,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let persistedChats = await loadChats();
     let persistedMessages = await loadMessages();
 
-    // 首次使用：创建默认阿米娅聊天
+    // 首次使用：创建默认聊天
     if (persistedChats.length === 0) {
-      persistedChats = [createDefaultAmiyaChat()];
-      persistedMessages = { 'chat-amiya': [createWelcomeMessage()] };
+      persistedChats = [
+        createDefaultChat('amiya'),
+        createDefaultChat('kaltsit'),
+      ];
+      persistedMessages = {
+        'chat-amiya': [createWelcomeMessage()],
+        'chat-kaltsit': [
+          {
+            id: 'm-welcome-k',
+            chatId: 'chat-kaltsit',
+            sender: 'ai' as const,
+            content: '医疗部通讯频道已加密。我是凯尔希。你的体检报告显示交感神经系统活性偏高——最好不是又熬夜了。',
+            timestamp: Date.now(),
+          },
+        ],
+      };
     }
 
     set({
@@ -199,15 +246,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendMessage: async (chatId: string, content: string) => {
-    // 确保 chat 存在（如果用户删了聊天但通过链接访问）
+    // 确保 chat 存在
     const existingChat = get().chats.find((c) => c.id === chatId);
     if (!existingChat) {
-      // 自动创建阿米娅聊天
+      const charId = chatId === 'chat-kaltsit' ? 'kaltsit' : 'amiya';
       set((state) => ({
-        chats: [
-          createDefaultAmiyaChat(),
-          ...state.chats,
-        ],
+        chats: [createDefaultChat(charId), ...state.chats],
       }));
     }
 
@@ -259,7 +303,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let isFallback = false;
 
     try {
-      const generator = streamChat(history, content, 'amiya');
+      const charId = chatId.replace('chat-', '');
+      const generator = streamChat(history, content, charId);
 
       for await (const chunk of generator) {
         if (chunk.type === 'model') {
@@ -404,7 +449,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const chats = get().chats;
         let amiyaChat = chats.find((c) => c.id === 'chat-amiya');
         if (!amiyaChat) {
-          amiyaChat = createDefaultAmiyaChat();
+          amiyaChat = createDefaultChat('amiya');
         }
 
         const newAiMessage: Message = {
@@ -439,7 +484,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           if (!state.chats.find((c) => c.id === 'chat-amiya')) {
             updated.chats = [
               {
-                ...createDefaultAmiyaChat(),
+                ...createDefaultChat('amiya'),
                 lastMessage: proactiveMsg,
                 lastMessageTime: Date.now(),
                 unreadCount: 1,

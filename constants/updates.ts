@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '13',
+    version: '1.2.0',
+    date: '2026-06-02',
+    message:
+      '🩺 凯尔希医生加入罗德岛通讯\n• 全新干员：凯尔希（医疗部负责人）\n• 独立性格：理性冷淡、医学权威、嘴硬心软\n• Mon3tr 战斗召唤物\n• 群聊中可与阿米娅互动讨论',
+  },
+  {
     id: '12',
     version: '1.1.2',
     date: '2026-06-02',

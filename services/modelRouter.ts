@@ -102,6 +102,14 @@ export function analyzeMessage(
     }
   }
 
+  if (characterId === 'kaltsit') {
+    const kalsitTriggers = ['特蕾西娅', '巴别塔', '预言家', '前文明', 'mon3tr', '你为什么留下', '你恨我', '你的过去'];
+    if (kalsitTriggers.some((t) => lowerMsg.includes(t))) {
+      triggerScore += 12;
+      reasons.push('凯尔希深度触发');
+    }
+  }
+
   const total = topicScore + emotionScore + contextScore + triggerScore;
 
   return {

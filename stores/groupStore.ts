@@ -222,7 +222,7 @@ export const useGroupStore = create<GroupState>((set, get) => ({
 
 // 从回复中提取发送者名字
 function extractSender(text: string): string | null {
-  const known = ['阿米娅', '凯尔希', '可露希尔'];
+  const known = ['凯尔希', '阿米娅', '可露希尔'];
   for (const name of known) {
     if (text.startsWith(name + '：') || text.startsWith(name + ':')) {
       return name;
