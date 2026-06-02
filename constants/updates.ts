@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '5',
+    version: '1.0.5',
+    date: '2026-06-02',
+    message:
+      '🎨 全新更新弹窗设计\n• 罗德岛终端美学风格\n• 脉冲光晕动画效果\n• 终端命令行状态栏\n• 六边形图标 + 扫描线纹理',
+  },
+  {
     id: '4',
     version: '1.0.4',
     date: '2026-06-02',
