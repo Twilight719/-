@@ -145,7 +145,14 @@ async function saveMessages(messages: Record<string, Message[]>): Promise<void> 
 async function loadChats(): Promise<Chat[]> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_CHATS);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const chats: Chat[] = JSON.parse(raw);
+      // 迁移修复：确保所有聊天的 avatar 是有效的（旧数据可能丢失了 require() 引用）
+      return chats.map((chat) => ({
+        ...chat,
+        avatar: typeof chat.avatar === 'number' ? chat.avatar : CHARACTER_AVATAR,
+      }));
+    }
   } catch (e) {
     console.error('[ChatStore] 加载聊天列表失败:', e);
   }

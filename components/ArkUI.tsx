@@ -54,7 +54,14 @@ export function HexAvatar({
               style={{ width: size - 4, height: size - 4 }}
               resizeMode="cover"
             />
-          ) : null}
+          ) : (
+            <View style={{
+              width: size - 4, height: size - 4,
+              justifyContent: 'center', alignItems: 'center',
+            }}>
+              <Ionicons name="person" size={size * 0.45} color={COLORS.low} />
+            </View>
+          )}
         </View>
       </View>
       {online && (
