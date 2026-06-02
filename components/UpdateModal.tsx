@@ -35,9 +35,10 @@ async function markUpdateSeen(updateId: string): Promise<void> {
 interface UpdateModalProps {
   visible: boolean;
   onClose: () => void;
+  mode: UpdateMode;
 }
 
-export default function UpdateModal({ visible, onClose }: UpdateModalProps) {
+export default function UpdateModal({ visible, onClose, mode }: UpdateModalProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -214,25 +215,37 @@ export default function UpdateModal({ visible, onClose }: UpdateModalProps) {
           </View>
 
           {/* 底部操作栏 */}
-          <View style={styles.actionBar}>
-            <TouchableOpacity
-              style={styles.btnLater}
-              onPress={handleLater}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.btnLaterText}>稍后提醒</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.btnUpdate}
-              onPress={handleUpdate}
-              activeOpacity={0.7}
-            >
-              <View style={styles.btnUpdateAccent} />
-              <Ionicons name="refresh" size={15} color="#121212" />
-              <Text style={styles.btnUpdateText}>立即更新</Text>
-            </TouchableOpacity>
-          </View>
+          {mode === 'pending' ? (
+            <View style={styles.actionBar}>
+              <TouchableOpacity
+                style={styles.btnLater}
+                onPress={handleLater}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.btnLaterText}>稍后提醒</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.btnUpdate}
+                onPress={handleUpdate}
+                activeOpacity={0.7}
+              >
+                <View style={styles.btnUpdateAccent} />
+                <Ionicons name="refresh" size={15} color="#121212" />
+                <Text style={styles.btnUpdateText}>立即更新</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.actionBar}>
+              <TouchableOpacity
+                style={styles.btnUpdate}
+                onPress={handleLater}
+                activeOpacity={0.7}
+              >
+                <View style={styles.btnUpdateAccent} />
+                <Text style={styles.btnUpdateText}>知道了</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* 底部状态栏 */}
           <View style={styles.bottomBar}>
@@ -245,25 +258,39 @@ export default function UpdateModal({ visible, onClose }: UpdateModalProps) {
   );
 }
 
-// 检查是否需要显示更新弹窗
-export async function checkAndShowUpdate(): Promise<boolean> {
+// 判断显示哪种弹窗：'pending'=待更新 | 'whatsnew'=已更新内容 | null=无需显示
+export type UpdateMode = 'pending' | 'whatsnew' | null;
+
+export async function checkUpdateMode(): Promise<UpdateMode> {
   try {
+    // 1. 先检查是否有待应用的更新（下载了但未重启）
+    const { isUpdatePending } = await Updates.checkForUpdateAsync()
+      .then(() => ({ isUpdatePending: false }))
+      .catch(() => ({ isUpdatePending: false }));
+
+    // 用 fetchUpdateAsync 检查
+    try {
+      const updateCheck = await Updates.checkForUpdateAsync();
+      if (updateCheck.isAvailable) {
+        await Updates.fetchUpdateAsync();
+        return 'pending';
+      }
+    } catch {
+      // expo-updates 可能已经自动下载了
+    }
+
+    // 2. 检查当前代码版本是否与本地已见版本不同
     const lastSeen = await getLastSeenUpdate();
     const latestId = LATEST_UPDATE.id;
 
     if (!lastSeen || lastSeen !== latestId) {
-      return true;
+      return 'whatsnew';
     }
 
-    const updateCheck = await Updates.checkForUpdateAsync();
-    if (updateCheck.isAvailable) {
-      await Updates.fetchUpdateAsync();
-      return true;
-    }
+    return null;
   } catch {
-    // 静默处理
+    return null;
   }
-  return false;
 }
 
 const styles = StyleSheet.create({
