@@ -5,8 +5,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ArkHeader, ArkButton } from '@/components/ArkUI';
 import { useSettingsStore, AIModelConfig } from '@/stores/settingsStore';
+import { useChatStore } from '@/stores/chatStore';
+import { useGroupStore } from '@/stores/groupStore';
 import { COLORS, FONTS, SPACING } from '@/constants/theme';
 
 const DOCTOR_AVATAR = require('../../assets/characters/doctor_avatar.webp');
@@ -94,13 +97,28 @@ export default function SettingsScreen() {
   };
 
   const handleClearCache = () => {
-    Alert.alert('清除缓存', '确定要清除聊天缓存吗？（不会删除 API 配置）', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '清除', style: 'destructive',
-        onPress: () => Alert.alert('完成', '缓存已清除（需重启 App）'),
-      },
-    ]);
+    Alert.alert(
+      '清除聊天记录',
+      '将删除所有聊天记录和群聊消息（API 配置保留）',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确认清除', style: 'destructive',
+          onPress: async () => {
+            const keys = [
+              '@rhodes_chats_v2', '@rhodes_messages_v2',
+              '@rhodes_groups_v2', '@rhodes_group_msgs_v2',
+              '@rhodes_last_proactive', '@rhodes_last_seen_update',
+            ];
+            await AsyncStorage.multiRemove(keys);
+            // 重置聊天和群聊 store
+            useChatStore.getState().initChats();
+            useGroupStore.getState().initGroups();
+            Alert.alert('已清除', '聊天记录已清空');
+          },
+        },
+      ]
+    );
   };
 
   if (!loaded) {
