@@ -95,8 +95,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         STORAGE_KEY,
         JSON.stringify({ flash, pro, maxHistory })
       );
-    } catch {
-      // ignore
+      console.log('[Settings] 配置已保存');
+    } catch (e) {
+      console.error('[Settings] 保存失败:', e);
     }
   },
 }));

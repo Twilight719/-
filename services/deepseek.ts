@@ -139,21 +139,24 @@ export async function* streamChat(
     { role: 'user', content: userMessage },
   ];
 
+  const requestBody = {
+    model: config.model,
+    messages,
+    temperature: config.temperature,
+    max_tokens: 200,
+    top_p: 0.95,
+  };
+
+  // ===== 方案A：流式请求（Web/支持 Streams 的环境）=====
   try {
+    const streamBody = { ...requestBody, stream: true };
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        stream: true,
-        temperature: config.temperature,
-        max_tokens: 200,
-        top_p: 0.95,
-      }),
+      body: JSON.stringify(streamBody),
     });
 
     if (!response.ok) {
@@ -161,107 +164,86 @@ export async function* streamChat(
       throw new Error(`API_ERROR: ${response.status} ${errorText}`);
     }
 
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('NO_READER');
+    // React Native Android 可能不支持 response.body.getReader()
+    if (response.body && typeof response.body.getReader === 'function') {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-    const decoder = new TextDecoder();
-    let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed === '' || trimmed === 'data: [DONE]') continue;
-        if (trimmed.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(trimmed.slice(6));
-            const content = data.choices?.[0]?.delta?.content;
-            if (content) {
-              yield { type: 'content', data: content };
-            }
-          } catch {
-            // ignore parse error
-          }
-        }
-      }
-    }
-  } catch (error) {
-    if (decision.model === 'pro') {
-      yield {
-        type: 'fallback',
-        data: 'Pro模式调用失败，正在降级至Flash模式...',
-      };
-      // 降级到Flash重试
-      const fallbackConfig = flash;
-      if (!fallbackConfig.apiKey.trim()) {
-        yield { type: 'error', data: 'NO_API_KEY' };
-        return;
-      }
-
-      try {
-        const url2 = `${fallbackConfig.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
-        const response2 = await fetch(url2, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${fallbackConfig.apiKey}`,
-          },
-          body: JSON.stringify({
-            model: fallbackConfig.model,
-            messages,
-            stream: true,
-            temperature: fallbackConfig.temperature,
-            max_tokens: 200,
-            top_p: 0.95,
-          }),
-        });
-
-        if (!response2.ok) {
-          const errorText = await response2.text();
-          throw new Error(`API_ERROR: ${response2.status} ${errorText}`);
-        }
-
-        const reader2 = response2.body?.getReader();
-        if (!reader2) throw new Error('NO_READER');
-
-        const decoder2 = new TextDecoder();
-        let buffer2 = '';
-
-        while (true) {
-          const { done, value } = await reader2.read();
-          if (done) break;
-
-          buffer2 += decoder2.decode(value, { stream: true });
-          const lines = buffer2.split('\n');
-          buffer2 = lines.pop() || '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed === '' || trimmed === 'data: [DONE]') continue;
-            if (trimmed.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(trimmed.slice(6));
-                const content = data.choices?.[0]?.delta?.content;
-                if (content) {
-                  yield { type: 'content', data: content };
-                }
-              } catch {
-                // ignore
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed === '' || trimmed === 'data: [DONE]') continue;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              const content = data.choices?.[0]?.delta?.content;
+              if (content) {
+                yield { type: 'content', data: content };
               }
+            } catch {
+              // ignore parse error
             }
           }
         }
-      } catch {
-        yield { type: 'error', data: 'API_FAILED' };
+      }
+      return; // 流式成功，直接返回
+    }
+
+    // response.body 不可用 → 抛出错触发非流式回退
+    throw new Error('NO_READER');
+  } catch (streamError: any) {
+    // ===== 方案B：非流式请求（React Native Android 兼容）=====
+    if (streamError.message === 'NO_READER' ||
+        streamError.message?.includes('getReader')) {
+      console.log('[API] 流式不可用，切换到非流式模式');
+    } else if (streamError.message?.startsWith('API_ERROR')) {
+      // 真正的 API 错误，尝试降级
+      if (decision.model === 'pro') {
+        yield { type: 'fallback', data: 'Pro模式调用失败，正在降级至Flash模式...' };
+      } else {
+        throw streamError; // Flash 也失败，抛出到外层
       }
     } else {
-      yield { type: 'error', data: 'API_FAILED' };
+      // 网络等其他错误
+      console.error('[API] 流式请求失败:', streamError.message);
+    }
+
+    // 非流式重试
+    try {
+      const nonStreamBody = { ...requestBody, stream: false };
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify(nonStreamBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API_ERROR: ${response.status} ${errorText}`);
+      }
+
+      const json = await response.json();
+      const content = json.choices?.[0]?.message?.content;
+      if (content) {
+        yield { type: 'content', data: content };
+      } else {
+        throw new Error('NO_CONTENT');
+      }
+      return;
+    } catch (nonStreamError: any) {
+      console.error('[API] 非流式请求也失败:', nonStreamError.message);
+      throw nonStreamError;
     }
   }
 }
