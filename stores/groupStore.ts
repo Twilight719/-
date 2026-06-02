@@ -92,12 +92,12 @@ async function loadAllMessages(): Promise<Record<string, GroupMessage[]>> {
   try { const raw = await AsyncStorage.getItem(STORAGE_GROUP_MSGS); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 }
 
-// 干员自主交流（最多2轮，无博士参与时自动结束）
+// 干员自主交流（最多5轮，无博士参与时逐渐结束）
 async function generateOperatorExchange(groupId: string, memberIds: string[], config: any) {
   const state = useGroupStore.getState();
   const memberList = memberIds.map((id: string) => MEMBER_NAMES[id] || id).join('、');
 
-  for (let round = 0; round < 2; round++) {
+  for (let round = 0; round < 5; round++) {
     try {
       const recentMsgs = (state.messages[groupId] || []).slice(-6).map((m) => ({
         role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
@@ -109,17 +109,18 @@ async function generateOperatorExchange(groupId: string, memberIds: string[], co
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
         body: JSON.stringify({
           model: config.model, messages: [
-            { role: 'system', content: `【罗德岛群聊 - 干员自主交流 第${round + 1}/2轮】
+            { role: 'system', content: `【罗德岛群聊 - 干员自主交流 第${round + 1}/5轮】
 成员：${memberList}
-当前群聊中的干员正在交谈。请让其中一位干员（不是博士）发出一句自然的回应。
+群聊中的干员们正在自由聊天。请让其中一位干员（不是博士）发出自然的回应。
 规则：
-- 回应要简短自然（1-2句）
-- 可以是对上一句话的评论、吐槽、或者提出新话题
-- ${round === 1 ? '这可能是最后一轮对话，让干员自然地结束对话，比如"我得去工作了"或"回头再聊"' : ''}
+- 回应要简短自然（1-3句）
+- 评论上一句话、吐槽、接话、或开启新话题
+- 保持各自性格：阿米娅温柔、凯尔希冷淡、Mon3tr直率、可露希尔元气
+- ${round >= 3 ? '对话已进行了一段时间，让干员自然地收尾（如"我得去工作了"、"回头聊"）' : '尽情自由聊天'}
 - 格式：干员名：内容` },
             ...recentMsgs,
           ],
-          stream: false, temperature: 0.9, max_tokens: 120,
+          stream: false, temperature: 0.9, max_tokens: 180,
         }),
       });
 
