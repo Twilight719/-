@@ -176,8 +176,6 @@ export default function ChatScreen() {
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
         />
 
         {/* 打字指示器 */}

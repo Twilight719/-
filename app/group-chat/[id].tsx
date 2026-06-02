@@ -112,8 +112,6 @@ export default function GroupChatScreen() {
         <FlatList ref={flatListRef} data={messages} keyExtractor={(item) => item.id} renderItem={renderItem}
           contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
         />
         {isTyping && (
           <Animated.View style={[styles.typing, { opacity: blinkAnim }]}>
