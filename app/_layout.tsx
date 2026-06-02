@@ -17,16 +17,20 @@ export default function RootLayout() {
   });
 
   const initChats = useChatStore((s) => s.initChats);
+  const checkProactiveMessage = useChatStore((s) => s.checkProactiveMessage);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const [showUpdate, setShowUpdate] = useState(false);
   const [updateMode, setUpdateMode] = useState<UpdateMode>(null);
 
   useEffect(() => {
     if (fontsLoaded) {
-      initChats();
+      // 加载持久化聊天 + 检查阿米娅主动消息
+      initChats().then(() => {
+        checkProactiveMessage();
+      });
       loadSettings();
 
-      // 启动后检查更新状态
+      // 启动后检查热更新
       checkUpdateMode().then((mode) => {
         if (mode) {
           setUpdateMode(mode);
@@ -34,7 +38,7 @@ export default function RootLayout() {
         }
       });
     }
-  }, [fontsLoaded, initChats, loadSettings]);
+  }, [fontsLoaded, initChats, checkProactiveMessage, loadSettings]);
 
   if (!fontsLoaded) {
     return (
