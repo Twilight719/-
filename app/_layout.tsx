@@ -2,25 +2,17 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import {
-  NotoSansSC_400Regular,
-} from '@expo-google-fonts/noto-sans-sc';
-import {
-  NotoSerifSC_700Bold,
-} from '@expo-google-fonts/noto-serif-sc';
-import {
-  RobotoMono_400Regular,
-} from '@expo-google-fonts/roboto-mono';
 import { View, StyleSheet } from 'react-native';
 import { useChatStore } from '@/stores/chatStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { COLORS } from '@/constants/theme';
 
 export default function RootLayout() {
+  // 从本地加载字体（避免请求 Google CDN 导致国内加载失败）
   const [fontsLoaded] = useFonts({
-    NotoSansSC_400Regular,
-    NotoSerifSC_700Bold,
-    RobotoMono_400Regular,
+    NotoSansSC_400Regular: require('../assets/fonts/NotoSansSC_400Regular.ttf'),
+    NotoSerifSC_700Bold: require('../assets/fonts/NotoSerifSC_700Bold.ttf'),
+    RobotoMono_400Regular: require('../assets/fonts/RobotoMono_400Regular.ttf'),
   });
 
   const initChats = useChatStore((s) => s.initChats);

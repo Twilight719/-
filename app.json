@@ -32,11 +32,16 @@
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "expo-updates"
     ],
     "experiments": {
       "typedRoutes": true
     },
+    "updates": {
+      "url": "https://u.expo.dev/22c60442-82b0-469d-a9b1-7dc5618f539e"
+    },
+    "runtimeVersion": "1.0.0",
     "extra": {
       "router": {
         "origin": false
