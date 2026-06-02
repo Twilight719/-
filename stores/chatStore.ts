@@ -292,10 +292,7 @@ const DEFAULT_CHATS: Record<string, { lastMessage: string }> = {
 function createDefaultChat(charId: string): Chat {
   const char = INITIAL_CHARACTERS.find((c) => c.id === charId);
   const defaults = DEFAULT_CHATS[charId] || DEFAULT_CHATS['amiya'];
-  const avatars: Record<string, ReturnType<typeof require>> = {
-    amiya: AMIYA_AVATAR, kaltsit: KALTSIT_AVATAR,
-    mon3tr: MON3TR_AVATAR, closure: CLOSURE_AVATAR,
-  };
+  const avatars = CHARACTER_AVATARS;
   return {
     id: `chat-${charId}`,
     characterId: charId,
