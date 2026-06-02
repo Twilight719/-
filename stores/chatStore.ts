@@ -55,6 +55,7 @@ interface ChatState {
   clearUnread: (chatId: string) => void;
   setActiveChat: (chatId: string | null) => void;
   dismissProBanner: () => void;
+  switchAlter: (chatId: string) => void;
   checkProactiveMessage: () => Promise<boolean>;
 }
 
@@ -71,13 +72,34 @@ const MON3TR_AVATAR = require('../assets/characters/mon3tr_avatar.webp');
 const MON3TR_FULL = require('../assets/characters/mon3tr_full.webp');
 const CLOSURE_AVATAR = require('../assets/characters/closure_avatar.webp');
 const CLOSURE_FULL = require('../assets/characters/closure_full.webp');
+const TEXAS_AVATAR = require('../assets/characters/texas_avatar.webp');
+const TEXAS_FULL = require('../assets/characters/texas_full.webp');
+const TEXAS_ALTER_AVATAR = require('../assets/characters/texas_alter_avatar.webp');
+const TEXAS_ALTER_FULL = require('../assets/characters/texas_alter_full.webp');
+const LAPPLAND_AVATAR = require('../assets/characters/lappland_avatar.webp');
+const LAPPLAND_ALTER_AVATAR = require('../assets/characters/lappland_alter_avatar.webp');
+const SILENCE_AVATAR = require('../assets/characters/silence_avatar.webp');
+const SILENCE_ALTER_AVATAR = require('../assets/characters/silence_alter_avatar.webp');
+const EYJA_AVATAR = require('../assets/characters/eyja_avatar.webp');
+const EYJA_ALTER_AVATAR = require('../assets/characters/eyja_alter_avatar.webp');
+const CHEN_AVATAR = require('../assets/characters/chen_avatar.webp');
+const CHEN_ALTER_AVATAR = require('../assets/characters/chen_alter_avatar.webp');
+const NEARL_AVATAR = require('../assets/characters/nearl_avatar.webp');
+const NEARL_ALTER_AVATAR = require('../assets/characters/nearl_alter_avatar.webp');
+const SIEGE_AVATAR = require('../assets/characters/siege_avatar.webp');
+const SIEGE_ALTER_AVATAR = require('../assets/characters/siege_alter_avatar.webp');
 
-// 角色头像映射表（供加载时修复 asset ID）
+// 角色头像映射表（供加载时修复 asset ID + 异格切换）
 const CHARACTER_AVATARS: Record<string, ReturnType<typeof require>> = {
-  amiya: AMIYA_AVATAR,
-  kaltsit: KALTSIT_AVATAR,
-  mon3tr: MON3TR_AVATAR,
-  closure: CLOSURE_AVATAR,
+  amiya: AMIYA_AVATAR, kaltsit: KALTSIT_AVATAR,
+  mon3tr: MON3TR_AVATAR, closure: CLOSURE_AVATAR,
+  texas: TEXAS_AVATAR, texas_alter: TEXAS_ALTER_AVATAR,
+  lappland: LAPPLAND_AVATAR, lappland_alter: LAPPLAND_ALTER_AVATAR,
+  silence: SILENCE_AVATAR, silence_alter: SILENCE_ALTER_AVATAR,
+  eyja: EYJA_AVATAR, eyja_alter: EYJA_ALTER_AVATAR,
+  chen: CHEN_AVATAR, chen_alter: CHEN_ALTER_AVATAR,
+  nearl: NEARL_AVATAR, nearl_alter: NEARL_ALTER_AVATAR,
+  siege: SIEGE_AVATAR, siege_alter: SIEGE_ALTER_AVATAR,
 };
 
 const INITIAL_CHARACTERS: Character[] = [
@@ -129,6 +151,98 @@ const INITIAL_CHARACTERS: Character[] = [
     description: '罗德岛总工程师，采购中心负责人。元气满满的技术宅兼奸商。',
     tags: ['工程师', '奸商', '技术宅'],
   },
+  // ====== 异格干员（7对14名） ======
+  // 德克萨斯 ↔ 缄默德克萨斯
+  {
+    id: 'texas', name: '德克萨斯', avatar: TEXAS_AVATAR, fullImage: TEXAS_FULL,
+    codeName: 'Texas', race: '鲁珀', origin: '叙拉古', class: '先锋',
+    description: '企鹅物流押运员，沉默寡言的酷girl。爱吃pocky。',
+    tags: ['先锋', '企鹅物流', '沉默'], alterId: 'texas_alter', alterName: '缄默德克萨斯',
+  },
+  {
+    id: 'texas_alter', name: '缄默德克萨斯', avatar: TEXAS_ALTER_AVATAR, fullImage: TEXAS_ALTER_FULL,
+    codeName: 'Texas the Omertosa', race: '鲁珀', origin: '叙拉古', class: '特种',
+    description: '与过去和解的德克萨斯，沉默但不再逃避。',
+    tags: ['特种', '企鹅物流', '异格'], alterOf: 'texas',
+  },
+  // 拉普兰德 ↔ 荒芜拉普兰德
+  {
+    id: 'lappland', name: '拉普兰德', avatar: LAPPLAND_AVATAR, fullImage: require('../assets/characters/lappland_full.webp'),
+    codeName: 'Lappland', race: '鲁珀', origin: '叙拉古', class: '近卫',
+    description: '狂战士，好战但忠诚。对德克萨斯有执念。',
+    tags: ['近卫', '叙拉古', '狂战士'], alterId: 'lappland_alter', alterName: '荒芜拉普兰德',
+  },
+  {
+    id: 'lappland_alter', name: '荒芜拉普兰德', avatar: LAPPLAND_ALTER_AVATAR, fullImage: require('../assets/characters/lappland_alter_full.webp'),
+    codeName: 'Lappland the Decadenza', race: '鲁珀', origin: '叙拉古', class: '近卫',
+    description: '经历叙拉古事件后更成熟的拉普兰德。',
+    tags: ['近卫', '叙拉古', '异格'], alterOf: 'lappland',
+  },
+  // 赫默 ↔ 淬羽赫默
+  {
+    id: 'silence', name: '赫默', avatar: SILENCE_AVATAR, fullImage: require('../assets/characters/silence_full.webp'),
+    codeName: 'Silence', race: '黎博利', origin: '哥伦比亚', class: '医疗',
+    description: '罗德岛研究员，认真内向，对科研执着。',
+    tags: ['医疗', '莱茵生命', '研究员'], alterId: 'silence_alter', alterName: '淬羽赫默',
+  },
+  {
+    id: 'silence_alter', name: '淬羽赫默', avatar: SILENCE_ALTER_AVATAR, fullImage: require('../assets/characters/silence_alter_full.webp'),
+    codeName: 'Silence the Paradigmatic', race: '黎博利', origin: '哥伦比亚', class: '辅助',
+    description: '不再畏缩，敢于对抗权威的赫默。',
+    tags: ['辅助', '莱茵生命', '异格'], alterOf: 'silence',
+  },
+  // 艾雅法拉 ↔ 纯烬艾雅法拉
+  {
+    id: 'eyja', name: '艾雅法拉', avatar: EYJA_AVATAR, fullImage: require('../assets/characters/eyja_full.webp'),
+    codeName: 'Eyjafjalla', race: '卡普里尼', origin: '莱塔尼亚', class: '术师',
+    description: '天灾研究学者，听觉障碍，温柔认真。',
+    tags: ['术师', '天灾研究', '听觉障碍'], alterId: 'eyja_alter', alterName: '纯烬艾雅法拉',
+  },
+  {
+    id: 'eyja_alter', name: '纯烬艾雅法拉', avatar: EYJA_ALTER_AVATAR, fullImage: require('../assets/characters/eyja_alter_full.webp'),
+    codeName: 'Eyjafjalla the Hvít Aska', race: '卡普里尼', origin: '莱塔尼亚', class: '医疗',
+    description: '经历灰烬事件后更坚强的艾雅法拉。',
+    tags: ['医疗', '异格'], alterOf: 'eyja',
+  },
+  // 陈 ↔ 假日威龙陈
+  {
+    id: 'chen', name: '陈', avatar: CHEN_AVATAR, fullImage: require('../assets/characters/chen_full.webp'),
+    codeName: 'Ch\'en', race: '龙', origin: '龙门', class: '近卫',
+    description: '龙门近卫局督察，正直严肃火爆脾气。',
+    tags: ['近卫', '龙门', '督察'], alterId: 'chen_alter', alterName: '假日威龙陈',
+  },
+  {
+    id: 'chen_alter', name: '假日威龙陈', avatar: CHEN_ALTER_AVATAR, fullImage: require('../assets/characters/chen_alter_full.webp'),
+    codeName: 'Ch\'en the Holungday', race: '龙', origin: '龙门', class: '狙击',
+    description: '度假中放松的陈sir，偶尔露出笑容。',
+    tags: ['狙击', '龙门', '异格'], alterOf: 'chen',
+  },
+  // 临光 ↔ 耀骑士临光
+  {
+    id: 'nearl', name: '临光', avatar: NEARL_AVATAR, fullImage: require('../assets/characters/nearl_full.webp'),
+    codeName: 'Nearl', race: '库兰塔', origin: '卡西米尔', class: '重装',
+    description: '卡西米尔骑士，正直温柔守护型。',
+    tags: ['重装', '卡西米尔', '骑士'], alterId: 'nearl_alter', alterName: '耀骑士临光',
+  },
+  {
+    id: 'nearl_alter', name: '耀骑士临光', avatar: NEARL_ALTER_AVATAR, fullImage: require('../assets/characters/nearl_alter_full.webp'),
+    codeName: 'Nearl the Radiant Knight', race: '库兰塔', origin: '卡西米尔', class: '近卫',
+    description: '经历黑暗后依然选择光明的临光。',
+    tags: ['近卫', '卡西米尔', '异格'], alterOf: 'nearl',
+  },
+  // 推进之王 ↔ 维娜·维多利亚
+  {
+    id: 'siege', name: '推进之王', avatar: SIEGE_AVATAR, fullImage: require('../assets/characters/siege_full.webp'),
+    codeName: 'Siege', race: '阿斯兰', origin: '维多利亚', class: '先锋',
+    description: '格拉斯哥帮领袖，自信领导力强。',
+    tags: ['先锋', '维多利亚', '领袖'], alterId: 'siege_alter', alterName: '维娜·维多利亚',
+  },
+  {
+    id: 'siege_alter', name: '维娜·维多利亚', avatar: SIEGE_ALTER_AVATAR, fullImage: require('../assets/characters/siege_alter_full.webp'),
+    codeName: 'Vina Victoria', race: '阿斯兰', origin: '维多利亚', class: '近卫',
+    description: '觉醒维多利亚王室血脉的推进之王。',
+    tags: ['近卫', '维多利亚', '异格'], alterOf: 'siege',
+  },
 ];
 
 // ====== 干员主动消息（回退用） ======
@@ -166,6 +280,13 @@ const DEFAULT_CHATS: Record<string, { lastMessage: string }> = {
   kaltsit: { lastMessage: '医疗部通讯已接通。有事直说。' },
   mon3tr: { lastMessage: 'Mon3tr在这里。博士...凯尔希在吗？' },
   closure: { lastMessage: '博士~要不要看看可露希尔大师的最新发明？今天打折哦！' },
+  texas: { lastMessage: '...企鹅物流。有事？' },
+  lappland: { lastMessage: '哈哈哈！博士！来打架吗？' },
+  silence: { lastMessage: '博士...莱茵生命的研究数据需要你过目。' },
+  eyja: { lastMessage: '博士？啊...天灾预警报告在这里...您说什么？' },
+  chen: { lastMessage: '龙门近卫局，陈。有什么需要汇报的？' },
+  nearl: { lastMessage: '博士，今天的训练计划已安排。需要调整吗？' },
+  siege: { lastMessage: '博士！格拉斯哥帮的兄弟们都在等你。' },
 };
 
 function createDefaultChat(charId: string): Chat {
@@ -284,7 +405,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     // 迁移：确保所有默认干员聊天都存在（旧版本升级）
-    const requiredChats = ['chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure'];
+    const requiredChats = [
+  'chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure',
+  'chat-texas', 'chat-lappland', 'chat-silence', 'chat-eyja',
+  'chat-chen', 'chat-nearl', 'chat-siege',
+];
     for (const requiredChatId of requiredChats) {
       if (!persistedChats.find((c) => c.id === requiredChatId)) {
         const charId = requiredChatId.replace('chat-', '');
@@ -487,6 +612,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   dismissProBanner: () => {
     set({ showProBanner: false });
+  },
+
+  // 异格切换：在聊天中切换原版/异格版本
+  switchAlter: (chatId: string) => {
+    set((state) => {
+      const chat = state.chats.find((c) => c.id === chatId);
+      if (!chat) return state;
+      const currentChar = state.characters.find((c) => c.id === chat.characterId);
+      if (!currentChar) return state;
+
+      // 确定目标ID
+      let targetId: string | undefined;
+      if (currentChar.alterId) targetId = currentChar.alterId;
+      else if (currentChar.alterOf) targetId = currentChar.alterOf;
+      if (!targetId) return state;
+
+      const targetChar = state.characters.find((c) => c.id === targetId);
+      if (!targetChar) return state;
+
+      const updated = {
+        chats: state.chats.map((c) =>
+          c.id === chatId
+            ? { ...c, characterId: targetId!, characterName: targetChar!.name, avatar: CHARACTER_AVATARS[targetId!] || targetChar!.avatar }
+            : c
+        ),
+      };
+      saveChats(updated.chats);
+      return updated;
+    });
   },
 
   // 检查是否应该发送阿米娅的主动消息（每天 2-3 次）

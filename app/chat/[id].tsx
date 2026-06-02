@@ -50,6 +50,18 @@ export default function ChatScreen() {
   const isTyping = useChatStore((s) => s.isTyping);
   const chat = useChatStore((s) => s.chats.find((c) => c.id === id));
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const switchAlter = useChatStore((s) => s.switchAlter);
+  const characters = useChatStore((s) => s.characters);
+
+  // 检查当前干员是否有异格
+  const currentChar = characters.find((c) => c.id === chat?.characterId);
+  const hasAlter = currentChar?.alterId || currentChar?.alterOf;
+  const alterName = currentChar?.alterId
+    ? characters.find((c) => c.id === currentChar.alterId)?.name
+    : currentChar?.alterOf
+    ? characters.find((c) => c.id === currentChar.alterOf)?.name
+    : null;
+  const isAlterVersion = !!currentChar?.alterOf;
 
   // 自动滚动到底部（新消息到达时）
   const scrollToEnd = useCallback((animated = true) => {
@@ -146,10 +158,23 @@ export default function ChatScreen() {
 
       <ArkHeader
         title={chat?.characterName || '通讯中'}
-        subtitle={chat?.online ? 'ONLINE' : 'OFFLINE'}
+        subtitle={
+          hasAlter
+            ? `切换：${isAlterVersion ? '←原版' : '异格→'} (${alterName})`
+            : (chat?.online ? 'ONLINE' : 'OFFLINE')
+        }
         onBack={() => router.back()}
         rightAction={
           <View style={styles.headerRight}>
+            {hasAlter && (
+              <TouchableOpacity
+                style={styles.alterBtn}
+                onPress={() => switchAlter(id)}
+                activeOpacity={0.6}
+              >
+                <Ionicons name="swap-horizontal" size={18} color={COLORS.accent} />
+              </TouchableOpacity>
+            )}
             <ModelIndicator />
             <TouchableOpacity style={styles.moreBtn}>
               <Ionicons
@@ -251,6 +276,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  alterBtn: {
+    width: 36, height: 36, borderRadius: 2,
+    borderWidth: 1, borderColor: 'rgba(216,221,90,0.3)',
+    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(216,221,90,0.08)',
   },
   moreBtn: {
     width: 40,
