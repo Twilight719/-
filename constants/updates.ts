@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '18',
+    version: '1.4.1',
+    date: '2026-06-02',
+    message:
+      '👤 博士个人主页 + 设置优化\n• 博士立绘头像显示在聊天气泡中\n• 设置页新增博士信息卡片\n• API 配置卡片支持折叠（已配置时自动收起）\n• 新增清除缓存功能',
+  },
+  {
     id: '17',
     version: '1.4.0',
     date: '2026-06-02',

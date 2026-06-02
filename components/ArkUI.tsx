@@ -274,6 +274,8 @@ export function ArkListItem({
 }
 
 // 聊天气泡（AI 消息支持打字机动画）
+const DOCTOR_AVATAR = require('../assets/characters/doctor_avatar.webp');
+
 export function ChatBubble({
   sender,
   content,
@@ -360,6 +362,11 @@ export function ChatBubble({
           )}
         </Text>
       </View>
+      {isUser && (
+        <View style={styles.bubbleAvatar}>
+          <Image source={DOCTOR_AVATAR} style={{ width: 36, height: 36, borderRadius: 4 }} resizeMode="cover" />
+        </View>
+      )}
     </View>
   );
 }
