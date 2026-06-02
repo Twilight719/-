@@ -56,11 +56,11 @@ export default function ChatScreen() {
   // 异格判断（用 useMemo 避免每次渲染都遍历）
   const alterInfo = React.useMemo(() => {
     const c = characters.find((ch) => ch.id === chat?.characterId);
-    if (!c) return { alterInfo.hasAlter: false, alterInfo.alterName: null, isAlter: false };
+    if (!c) return { hasAlter: false, alterName: null as string | null, isAlter: false };
     const targetId = c.alterId || c.alterOf;
-    if (!targetId) return { alterInfo.hasAlter: false, alterInfo.alterName: null, isAlter: false };
+    if (!targetId) return { hasAlter: false, alterName: null as string | null, isAlter: false };
     const target = characters.find((ch) => ch.id === targetId);
-    return { alterInfo.hasAlter: true, alterInfo.alterName: target?.name || null, isAlter: !!c.alterOf };
+    return { hasAlter: true, alterName: target?.name || null, isAlter: !!c.alterOf };
   }, [chat?.characterId, characters]);
 
   // 自动滚动到底部（新消息到达时）
