@@ -201,8 +201,10 @@ export default function ChatScreen() {
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          // 反转列表：最新消息始终在底部，无需手动滚动
-          inverted
+          // 打开立即停在底部（无动画，无闪烁）
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         />
 
         {/* 打字指示器 */}
