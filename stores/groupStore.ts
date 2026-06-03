@@ -197,8 +197,14 @@ async function generateAIChatRound(
     }
 
     const json = await response.json();
-    const reply = json.choices?.[0]?.message?.content || '';
-    const clean = reply.replace(/^[^:]+[：:]\s*/, '').trim() || reply;
+    let reply = json.choices?.[0]?.message?.content || '';
+    let clean = reply.replace(/^[^:]+[：:]\s*/, '').trim() || reply;
+
+    // 如果内容为空，使用本地回退
+    if (!clean) {
+      const fallbacks = ['嗯。', '哈哈。', '确实。', '我也这么觉得。', '...*点头*'];
+      clean = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
 
     const aiMsg: GroupMessage = {
       id: `g-auto-${Date.now()}`,
@@ -361,21 +367,34 @@ export const useGroupStore = create<GroupState>((set, get) => ({
 
         const systemPrompt = buildGroupSystemPrompt(memberId, group.memberIds, history);
         const chatHistory: ChatMessage[] = history.slice(-10).map((h) => ({
-          role: 'user',
+          role: h.senderName === '博士' ? 'user' : 'assistant',
           content: `${h.senderName}：${h.content}`,
         }));
 
         // 调用 AI（使用自定义群聊提示词）
         let aiContent = '';
+        let hasError = false;
         const generator = streamChat(chatHistory, content, 'amiya', systemPrompt);
         for await (const chunk of generator) {
           if (chunk.type === 'content') {
             aiContent += chunk.data || '';
+          } else if (chunk.type === 'error' || chunk.type === 'fallback') {
+            hasError = true;
           }
         }
 
-        // 清理格式
-        const cleanContent = aiContent.replace(/^[^:]+[：:]\s*/, '').trim() || aiContent;
+        // 如果生成失败或内容为空，使用本地回退
+        let cleanContent = aiContent.replace(/^[^:]+[：:]\s*/, '').trim() || aiContent;
+        if (!cleanContent || hasError) {
+          const fallbacks = [
+            '嗯，我听到了。',
+            '哈哈，确实。',
+            '这个嘛...让我想想。',
+            '博士说得对。',
+            '我有同感。',
+          ];
+          cleanContent = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        }
 
         const aiMsg: GroupMessage = {
           id: `g-${Date.now()}-${i}`,

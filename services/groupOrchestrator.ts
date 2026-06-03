@@ -198,8 +198,8 @@ export function decideNextSpeaker(
     }
   }
 
-  // 3. 话题延续（30%概率随机接话）
-  if (Math.random() > 0.7) {
+  // 3. 话题延续（60%概率随机接话，提高群聊活跃度）
+  if (Math.random() > 0.4) {
     const others = memberIds.filter((id) => id !== lastSenderId);
     const random = others[Math.floor(Math.random() * others.length)];
     if (random) {
