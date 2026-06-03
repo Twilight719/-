@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ArkHeader, HexAvatar, ArkListItem } from '@/components/ArkUI';
@@ -24,7 +25,23 @@ function formatTime(timestamp: number): string {
 
 export default function MessagesScreen() {
   const router = useRouter();
-  const chats = useChatStore((s) => s.chats);
+  const rawChats = useChatStore((s) => s.chats);
+  const togglePin = useChatStore((s) => s.togglePin);
+
+  // 排序：置顶优先，然后按最近消息时间
+  const chats = useMemo(() => {
+    return [...rawChats].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return b.lastMessageTime - a.lastMessageTime;
+    });
+  }, [rawChats]);
+
+  const handleLongPress = (chatId: string, chatName: string, pinned: boolean) => {
+    Alert.alert(chatName, pinned ? '取消置顶？' : '置顶聊天？', [
+      { text: '取消', style: 'cancel' },
+      { text: pinned ? '取消置顶' : '置顶', onPress: () => togglePin(chatId) },
+    ]);
+  };
 
   const handleChatPress = (chatId: string) => {
     useChatStore.getState().clearUnread(chatId);
@@ -36,12 +53,16 @@ export default function MessagesScreen() {
     <ArkListItem
       status={item.online ? 'online' : 'offline'}
       onPress={() => handleChatPress(item.id)}
+      onLongPress={() => handleLongPress(item.id, item.characterName, item.pinned)}
     >
       <View style={styles.chatRow}>
         <HexAvatar uri={item.avatar} size={52} online={item.online} />
         <View style={styles.chatInfo}>
           <View style={styles.chatTopRow}>
-            <Text style={styles.chatName}>{item.characterName}</Text>
+            <View style={styles.nameRow}>
+              {item.pinned && <Ionicons name="pin" size={12} color={COLORS.accent} style={{ marginRight: 4 }} />}
+              <Text style={styles.chatName}>{item.characterName}</Text>
+            </View>
             <Text style={styles.chatTime}>{formatTime(item.lastMessageTime)}</Text>
           </View>
           <View style={styles.chatBottomRow}>
@@ -123,6 +144,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   chatName: {
     fontFamily: FONTS.serif,
     fontSize: 16,

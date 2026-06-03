@@ -242,10 +242,12 @@ export function ArkListItem({
   children,
   status = 'none',
   onPress,
+  onLongPress,
 }: {
   children: React.ReactNode;
   status?: 'online' | 'offline' | 'none';
   onPress?: () => void;
+  onLongPress?: () => void;
 }) {
   const statusColors = {
     online: COLORS.online,
@@ -262,9 +264,9 @@ export function ArkListItem({
     </View>
   );
 
-  if (onPress) {
+  if (onPress || onLongPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <TouchableOpacity onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
         {content}
       </TouchableOpacity>
     );

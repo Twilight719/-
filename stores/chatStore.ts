@@ -21,6 +21,7 @@ export interface Chat {
   lastMessageTime: number;
   unreadCount: number;
   online: boolean;
+  pinned: boolean;
 }
 
 export interface Character {
@@ -55,6 +56,7 @@ interface ChatState {
   clearUnread: (chatId: string) => void;
   setActiveChat: (chatId: string | null) => void;
   dismissProBanner: () => void;
+  togglePin: (chatId: string) => void;
   switchAlter: (chatId: string) => void;
   checkProactiveMessage: () => Promise<boolean>;
 }
@@ -309,6 +311,7 @@ function createDefaultChat(charId: string): Chat {
     lastMessageTime: Date.now(),
     unreadCount: 0,
     online: true,
+    pinned: false,
   };
 }
 
@@ -634,6 +637,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setActiveChat: (chatId: string | null) => {
     set({ activeChatId: chatId });
+  },
+
+  togglePin: (chatId: string) => {
+    set((state) => {
+      const updated = {
+        chats: state.chats.map((c) =>
+          c.id === chatId ? { ...c, pinned: !c.pinned } : c
+        ),
+      };
+      saveChats(updated.chats);
+      return updated;
+    });
   },
 
   dismissProBanner: () => {
