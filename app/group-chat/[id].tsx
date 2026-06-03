@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Image,
   KeyboardAvoidingView, Platform, ImageBackground, Animated, Modal, ScrollView, Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { ArkHeader } from '@/components/ArkUI';
-import { useGroupStore, GroupMessage, MEMBER_NAMES } from '@/stores/groupStore';
+import { useGroupStore, GroupMessage, MEMBER_NAMES, MEMBER_AVATARS } from '@/stores/groupStore';
 import { COLORS, FONTS, SPACING } from '@/constants/theme';
+
+const NAME_TO_AVATAR: Record<string, ReturnType<typeof require>> = {
+  '阿米娅': MEMBER_AVATARS['amiya'], '凯尔希': MEMBER_AVATARS['kaltsit'],
+  'Mon3tr': MEMBER_AVATARS['mon3tr'], '可露希尔': MEMBER_AVATARS['closure'],
+};
 
 const ALL_MEMBERS = [
   { id: 'amiya', name: '阿米娅' },
@@ -78,9 +83,7 @@ export default function GroupChatScreen() {
     return (
       <View style={[styles.msgRow, isUser && styles.msgRowRight]}>
         {!isUser && (
-          <View style={[styles.avatar, { borderColor: color }]}>
-            <Text style={[styles.avatarTxt, { color }]}>{item.senderName[0]}</Text>
-          </View>
+          <Image source={getAvatar(item.senderName)} style={[styles.avatar, { borderColor: color }]} resizeMode="cover" />
         )}
         <View style={[styles.bubble, isUser ? styles.bUser : styles.bAi, { borderLeftColor: !isUser ? color : 'transparent' }]}>
           {!isUser && <Text style={[styles.sender, { color }]}>{item.senderName}</Text>}
