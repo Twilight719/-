@@ -657,7 +657,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setActiveChat: (chatId: string | null) => {
-    set({ activeChatId: chatId });
+    set({
+      activeChatId: chatId,
+      currentModel: null,
+      lastRouterReason: null,
+      showProBanner: false,
+    });
   },
 
   togglePin: (chatId: string) => {
