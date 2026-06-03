@@ -280,6 +280,20 @@ const DEFAULT_CHATS: Record<string, { lastMessage: string }> = {
   kaltsit: { lastMessage: '医疗部通讯已接通。有事直说。' },
   mon3tr: { lastMessage: 'Mon3tr在这里。博士...凯尔希在吗？' },
   closure: { lastMessage: '博士~要不要看看可露希尔大师的最新发明？今天打折哦！' },
+  texas: { lastMessage: '...企鹅物流。有事？' },
+  texas_alter: { lastMessage: '我在。你想问什么？' },
+  lappland: { lastMessage: '哈哈哈！博士！来打架吗？' },
+  lappland_alter: { lastMessage: '博士，叙拉古的事...谢谢你。' },
+  silence: { lastMessage: '博士...研究数据需要您过目。' },
+  silence_alter: { lastMessage: '博士，我不会再退缩了。' },
+  eyja: { lastMessage: '博士？啊...天灾预警报告...您说什么？' },
+  eyja_alter: { lastMessage: '博士，这次我会保护好大家的。' },
+  chen: { lastMessage: '龙门近卫局，陈。有什么需要汇报？' },
+  chen_alter: { lastMessage: '博士...今天放假，别谈工作行吗？' },
+  nearl: { lastMessage: '博士，训练计划已安排。' },
+  nearl_alter: { lastMessage: '博士，光明终将战胜黑暗。' },
+  siege: { lastMessage: '博士！格拉斯哥帮的兄弟们都在等你。' },
+  siege_alter: { lastMessage: '博士，维多利亚的事...我想和您谈谈。' },
 };
 
 function createDefaultChat(charId: string): Chat {
@@ -336,7 +350,16 @@ async function loadChats(): Promise<Chat[]> {
     if (raw) {
       const chats: Chat[] = JSON.parse(raw);
       // 过滤掉已移除的干员 + 强制刷新 avatar
-      const allowedIds = ['chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure'];
+      const allowedIds = [
+  'chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure',
+  'chat-texas', 'chat-texas_alter',
+  'chat-lappland', 'chat-lappland_alter',
+  'chat-silence', 'chat-silence_alter',
+  'chat-eyja', 'chat-eyja_alter',
+  'chat-chen', 'chat-chen_alter',
+  'chat-nearl', 'chat-nearl_alter',
+  'chat-siege', 'chat-siege_alter',
+];
       const filtered = chats
         .filter((chat) => allowedIds.includes(chat.id))
         .map((chat) => ({
@@ -403,7 +426,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     // 迁移：确保所有默认干员聊天都存在（旧版本升级）
-    const requiredChats = ['chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure'];
+    const requiredChats = [
+  'chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure',
+  'chat-texas', 'chat-texas_alter',
+  'chat-lappland', 'chat-lappland_alter',
+  'chat-silence', 'chat-silence_alter',
+  'chat-eyja', 'chat-eyja_alter',
+  'chat-chen', 'chat-chen_alter',
+  'chat-nearl', 'chat-nearl_alter',
+  'chat-siege', 'chat-siege_alter',
+];
     for (const requiredChatId of requiredChats) {
       if (!persistedChats.find((c) => c.id === requiredChatId)) {
         const charId = requiredChatId.replace('chat-', '');
