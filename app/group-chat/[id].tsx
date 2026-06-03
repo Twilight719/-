@@ -20,10 +20,15 @@ function getAvatar(name: string) {
 }
 
 const ALL_MEMBERS = [
-  { id: 'amiya', name: '阿米娅' },
-  { id: 'kaltsit', name: '凯尔希' },
-  { id: 'mon3tr', name: 'Mon3tr' },
-  { id: 'closure', name: '可露希尔' },
+  { id: 'amiya', name: '阿米娅' }, { id: 'kaltsit', name: '凯尔希' },
+  { id: 'mon3tr', name: 'Mon3tr' }, { id: 'closure', name: '可露希尔' },
+  { id: 'texas', name: '德克萨斯' }, { id: 'texas_alter', name: '缄默德克萨斯' },
+  { id: 'lappland', name: '拉普兰德' }, { id: 'lappland_alter', name: '荒芜拉普兰德' },
+  { id: 'silence', name: '赫默' }, { id: 'silence_alter', name: '淬羽赫默' },
+  { id: 'eyja', name: '艾雅法拉' }, { id: 'eyja_alter', name: '纯烬艾雅法拉' },
+  { id: 'chen', name: '陈' }, { id: 'chen_alter', name: '假日威龙陈' },
+  { id: 'nearl', name: '临光' }, { id: 'nearl_alter', name: '耀骑士临光' },
+  { id: 'siege', name: '推进之王' }, { id: 'siege_alter', name: '维娜·维多利亚' },
 ];
 
 const CHAT_BG = require('../../assets/characters/amiya_bg.png');

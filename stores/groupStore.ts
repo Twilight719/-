@@ -27,6 +27,13 @@ const STORAGE_GROUP_MSGS = '@rhodes_group_msgs_v2';
 
 const MEMBER_NAMES: Record<string, string> = {
   amiya: '阿米娅', kaltsit: '凯尔希', mon3tr: 'Mon3tr', closure: '可露希尔',
+  texas: '德克萨斯', texas_alter: '缄默德克萨斯',
+  lappland: '拉普兰德', lappland_alter: '荒芜拉普兰德',
+  silence: '赫默', silence_alter: '淬羽赫默',
+  eyja: '艾雅法拉', eyja_alter: '纯烬艾雅法拉',
+  chen: '陈', chen_alter: '假日威龙陈',
+  nearl: '临光', nearl_alter: '耀骑士临光',
+  siege: '推进之王', siege_alter: '维娜·维多利亚',
 };
 
 const MEMBER_AVATARS: Record<string, ReturnType<typeof require>> = {
@@ -34,6 +41,20 @@ const MEMBER_AVATARS: Record<string, ReturnType<typeof require>> = {
   kaltsit: require('../assets/characters/kaltsit_avatar.webp'),
   mon3tr: require('../assets/characters/mon3tr_avatar.webp'),
   closure: require('../assets/characters/closure_avatar.webp'),
+  texas: require('../assets/characters/texas_avatar.webp'),
+  texas_alter: require('../assets/characters/texas_alter_avatar.webp'),
+  lappland: require('../assets/characters/lappland_avatar.webp'),
+  lappland_alter: require('../assets/characters/lappland_alter_avatar.webp'),
+  silence: require('../assets/characters/silence_avatar.webp'),
+  silence_alter: require('../assets/characters/silence_alter_avatar.webp'),
+  eyja: require('../assets/characters/eyja_avatar.webp'),
+  eyja_alter: require('../assets/characters/eyja_alter_avatar.webp'),
+  chen: require('../assets/characters/chen_avatar.webp'),
+  chen_alter: require('../assets/characters/chen_alter_avatar.webp'),
+  nearl: require('../assets/characters/nearl_avatar.webp'),
+  nearl_alter: require('../assets/characters/nearl_alter_avatar.webp'),
+  siege: require('../assets/characters/siege_avatar.webp'),
+  siege_alter: require('../assets/characters/siege_alter_avatar.webp'),
 };
 
 // 群聊系统提示词模板
@@ -43,6 +64,20 @@ function getGroupPrompt(memberIds: string[]): string {
     kaltsit: '凯尔希：理性冷淡的医疗部负责人。说话简练专业，常用"哼"。嘴硬心软。',
     mon3tr: 'Mon3tr：凯尔希的共生体，孩子般纯粹直率。称凯尔希为"凯尔希"，会学猫叫"喵~"。',
     closure: '可露希尔：元气工程师+奸商。喊"博士~"拉长音，三句不离推销。语速快。',
+    texas: '德克萨斯：企鹅物流沉默酷girl。话极少，爱吃pocky。',
+    texas_alter: '缄默德克萨斯：与过去和解的德克萨斯，话少但不再逃避。',
+    lappland: '拉普兰德：叙拉古狂战士，疯狂好战，对德克萨斯有执念。',
+    lappland_alter: '荒芜拉普兰德：更成熟的拉普兰德，想保护重要的人。',
+    silence: '赫默：罗德岛研究员，认真内向，关心伊芙利特。',
+    silence_alter: '淬羽赫默：不再畏缩的赫默，敢于对抗权威。',
+    eyja: '艾雅法拉：天灾研究学者，听觉障碍，温柔认真。',
+    eyja_alter: '纯烬艾雅法拉：更坚强的艾雅法拉，坦然接受一切。',
+    chen: '陈：龙门近卫局督察，正直严肃火爆脾气。',
+    chen_alter: '假日威龙陈：度假中的陈sir，放松偶尔笑。',
+    nearl: '临光：卡西米尔骑士，正直温柔守护型。',
+    nearl_alter: '耀骑士临光：经历黑暗仍选择光明的成熟临光。',
+    siege: '推进之王：格拉斯哥帮领袖，自信领导力强。',
+    siege_alter: '维娜·维多利亚：觉醒王室血脉的沉稳领袖。',
   };
   const memberList = memberIds.map((id) => memberDescs[id] || id).join('\n');
   return `【罗德岛内部群聊】
