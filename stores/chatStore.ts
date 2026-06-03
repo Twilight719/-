@@ -494,31 +494,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
       timestamp: Date.now(),
     };
 
-    set((state) => {
-      const updated = {
-        messages: {
-          ...state.messages,
-          [chatId]: [...(state.messages[chatId] || []), newMessage],
-        },
-        chats: state.chats.map((chat) =>
-          chat.id === chatId
-            ? {
-                ...chat,
-                lastMessage: content,
-                lastMessageTime: Date.now(),
-              }
-            : chat
-        ),
-        currentModel: null,
-        lastRouterReason: null,
-        isProMode: false,
-        showProBanner: false,
-      };
-      // 异步保存
-      saveMessages(updated.messages);
-      saveChats(updated.chats);
-      return updated;
-    });
+    const stateAfterUserMsg = get();
+    const userMsgUpdated = {
+      messages: {
+        ...stateAfterUserMsg.messages,
+        [chatId]: [...(stateAfterUserMsg.messages[chatId] || []), newMessage],
+      },
+      chats: stateAfterUserMsg.chats.map((chat) =>
+        chat.id === chatId
+          ? { ...chat, lastMessage: content, lastMessageTime: Date.now() }
+          : chat
+      ),
+      currentModel: null,
+      lastRouterReason: null,
+      isProMode: false,
+      showProBanner: false,
+    };
+    set(userMsgUpdated);
+    saveMessages(userMsgUpdated.messages);
+    saveChats(userMsgUpdated.chats);
 
     set({ isTyping: true });
 
@@ -598,29 +592,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (isFallback && aiContent.trim().length === 0) {
       const fallbackReply = getFallbackReply();
       aiContent = fallbackReply;
-      set((state) => {
-        const existing = state.messages[chatId] || [];
-        const updated = {
-          messages: {
-            ...state.messages,
-            [chatId]: [
-              ...existing,
-              {
-                id: aiMessageId,
-                chatId,
-                sender: 'ai' as const,
-                content: fallbackReply,
-                timestamp: Date.now(),
-                model: 'local',
-              },
-            ],
-          },
-          isTyping: false,
-          currentModel: 'local',
-        };
-        saveMessages(updated.messages);
-        return updated;
-      });
+      const fbState = get();
+      const fbUpdated = {
+        messages: {
+          ...fbState.messages,
+          [chatId]: [
+            ...(fbState.messages[chatId] || []),
+            {
+              id: aiMessageId, chatId, sender: 'ai' as const,
+              content: fallbackReply, timestamp: Date.now(), model: 'local',
+            },
+          ],
+        },
+        isTyping: false,
+        currentModel: 'local',
+      };
+      set(fbUpdated);
+      saveMessages(fbUpdated.messages);
     } else {
       set({ isTyping: false });
       // 保存最终消息
@@ -629,23 +617,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     // 更新聊天列表
-    set((state) => {
-      const updated = {
-        chats: state.chats.map((chat) =>
-          chat.id === chatId
-            ? {
-                ...chat,
-                lastMessage: aiContent || '...',
-                lastMessageTime: Date.now(),
-                unreadCount:
-                  state.activeChatId === chatId ? 0 : chat.unreadCount + 1,
-              }
-            : chat
-        ),
-      };
-      saveChats(updated.chats);
-      return updated;
-    });
+    const chatListState = get();
+    const chatListUpdated = {
+      chats: chatListState.chats.map((chat) =>
+        chat.id === chatId
+          ? {
+              ...chat,
+              lastMessage: aiContent || '...',
+              lastMessageTime: Date.now(),
+              unreadCount: chatListState.activeChatId === chatId ? 0 : chat.unreadCount + 1,
+            }
+          : chat
+      ),
+    };
+    set(chatListUpdated);
+    saveChats(chatListUpdated.chats);
   },
 
   clearUnread: (chatId: string) => {
@@ -666,48 +652,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   togglePin: (chatId: string) => {
-    set((state) => {
-      const updated = {
-        chats: state.chats.map((c) =>
-          c.id === chatId ? { ...c, pinned: !c.pinned } : c
-        ),
-      };
-      saveChats(updated.chats);
-      return updated;
-    });
+    const pinState = get();
+    const pinUpdated = {
+      chats: pinState.chats.map((c) =>
+        c.id === chatId ? { ...c, pinned: !c.pinned } : c
+      ),
+    };
+    set(pinUpdated);
+    saveChats(pinUpdated.chats);
   },
 
   dismissProBanner: () => {
     set({ showProBanner: false });
   },
 
-  // 异格切换：在聊天中切换原版/异格版本
+  // 异格切换
   switchAlter: (chatId: string) => {
-    set((state) => {
-      const chat = state.chats.find((c) => c.id === chatId);
-      if (!chat) return state;
-      const currentChar = state.characters.find((c) => c.id === chat.characterId);
-      if (!currentChar) return state;
-
-      // 确定目标ID
-      let targetId: string | undefined;
-      if (currentChar.alterId) targetId = currentChar.alterId;
-      else if (currentChar.alterOf) targetId = currentChar.alterOf;
-      if (!targetId) return state;
-
-      const targetChar = state.characters.find((c) => c.id === targetId);
-      if (!targetChar) return state;
-
-      const updated = {
-        chats: state.chats.map((c) =>
-          c.id === chatId
-            ? { ...c, characterId: targetId!, characterName: targetChar!.name, avatar: CHARACTER_AVATARS[targetId!] || targetChar!.avatar }
-            : c
-        ),
-      };
-      saveChats(updated.chats);
-      return updated;
-    });
+    const altState = get();
+    const chat = altState.chats.find((c) => c.id === chatId);
+    if (!chat) return;
+    const currentChar = altState.characters.find((c) => c.id === chat.characterId);
+    if (!currentChar) return;
+    let targetId: string | undefined;
+    if (currentChar.alterId) targetId = currentChar.alterId;
+    else if (currentChar.alterOf) targetId = currentChar.alterOf;
+    if (!targetId) return;
+    const targetChar = altState.characters.find((c) => c.id === targetId);
+    if (!targetChar) return;
+    const altUpdated = {
+      chats: altState.chats.map((c) =>
+        c.id === chatId
+          ? { ...c, characterId: targetId, characterName: targetChar.name, avatar: CHARACTER_AVATARS[targetId] || targetChar.avatar }
+          : c
+      ),
+    };
+    set(altUpdated);
+    saveChats(altUpdated.chats);
   },
 
   // 检查是否应该发送阿米娅的主动消息（每天 2-3 次）
