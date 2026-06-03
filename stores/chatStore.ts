@@ -335,11 +335,19 @@ async function loadChats(): Promise<Chat[]> {
     const raw = await AsyncStorage.getItem(STORAGE_CHATS);
     if (raw) {
       const chats: Chat[] = JSON.parse(raw);
-      // 强制刷新 avatar 为当前 asset ID（require() 在每次打包/热更后 ID 会变）
-      return chats.map((chat) => ({
-        ...chat,
-        avatar: CHARACTER_AVATARS[chat.characterId] || AMIYA_AVATAR,
-      }));
+      // 过滤掉已移除的干员 + 强制刷新 avatar
+      const allowedIds = ['chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure'];
+      const filtered = chats
+        .filter((chat) => allowedIds.includes(chat.id))
+        .map((chat) => ({
+          ...chat,
+          avatar: CHARACTER_AVATARS[chat.characterId] || AMIYA_AVATAR,
+        }));
+      // 持久化清理，避免下次加载又被旧数据覆盖
+      if (filtered.length !== chats.length) {
+        saveChats(filtered);
+      }
+      return filtered;
     }
   } catch (e) {
     console.error('[ChatStore] 加载聊天列表失败:', e);
