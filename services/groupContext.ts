@@ -62,19 +62,43 @@ export function buildAIChatContext(
   memberId: string,
   history: Array<{ senderName: string; content: string }>,
   lastSpeaker: string,
-  lastContent: string
+  lastContent: string,
+  round: number = 0,
+  totalRounds: number = 4
 ): string {
   const meta = MEMBER_META[memberId];
   if (!meta) return '';
 
-  const recentChat = history.slice(-5).map((h) => `${h.senderName}：${h.content}`).join('\n');
+  const recentChat = history.slice(-6).map((h) => `${h.senderName}：${h.content}`).join('\n');
 
-  return `【群聊接话模式】
-你是${meta.name}。
+  // 根据轮次调整语气和长度要求
+  const isLastRound = round >= totalRounds - 1;
+  const isLateRound = round >= totalRounds - 2;
+
+  let lengthHint = '';
+  if (isLastRound) {
+    lengthHint = '这是对话的最后一段，用1句话自然收尾（如"我去工作了"、"先这样了"、"回头聊"），不要开启新话题。';
+  } else if (isLateRound) {
+    lengthHint = '对话快要结束了，回复2-3句话，可以开始收尾，不要开启太复杂的新话题。';
+  } else {
+    lengthHint = '回复2-4句话，可以展开话题、吐槽细节、分享小趣事，让对话有延续性。';
+  }
+
+  return `【群聊接话模式 - 第${round + 1}/${totalRounds}轮】
+你是${meta.name}，${meta.relationships ? Object.values(meta.relationships).slice(0, 2).join('、') : '普通干员'}。
+
 刚刚${lastSpeaker}说："${lastContent}"
 
 最近对话：
-${recentChat}
+${recentChat || '（群聊刚开始）'}
 
-请作为${meta.name}简短回应（1-2句话）。可以吐槽、接梗、或简单附和。`;
+【回复要求】
+${lengthHint}
+- 保持${meta.name}的性格和说话方式
+- 可以接话、吐槽、开玩笑、或表达自己的情绪
+- 不要重复别人刚说过的内容
+- 用"~"、emoji、动作描述（*动作*）让对话更生动
+- 如果提到其他干员，可以@对方名字
+
+现在请作为${meta.name}回复。`;
 }

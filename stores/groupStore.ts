@@ -141,99 +141,123 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// AI 互聊（最多1轮，基于关系驱动）
+// AI 互聊（最多4轮，内容丰富，自然收尾）
 async function generateAIChatRound(
   groupId: string,
   lastMsg: GroupMessage,
   memberIds: string[],
   config: any
 ): Promise<void> {
-  const next = decideNextSpeaker(lastMsg.characterId || '', lastMsg.content, memberIds);
-  if (!next) return;
+  const MAX_ROUNDS = 4;
+  let currentLastMsg = lastMsg;
 
-  const memberName = MEMBER_NAMES[next.speakerId] || next.speakerId;
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    const next = decideNextSpeaker(currentLastMsg.characterId || '', currentLastMsg.content, memberIds, round, MAX_ROUNDS);
+    if (!next) break;
 
-  // 显示正在输入
-  useGroupStore.setState((s) => ({
-    typingMembers: [...new Set([...s.typingMembers, next.speakerId])],
-  }));
+    const memberName = MEMBER_NAMES[next.speakerId] || next.speakerId;
 
-  await delay(800 + Math.random() * 1000);
-
-  try {
-    const recentMsgs = (useGroupStore.getState().messages[groupId] || []).slice(-6).map((m) => ({
-      role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-      content: `${m.senderName}：${m.content.slice(0, 100)}`,
+    // 显示正在输入
+    useGroupStore.setState((s) => ({
+      typingMembers: [...new Set([...s.typingMembers, next.speakerId])],
     }));
 
-    const context = buildAIChatContext(
-      next.speakerId,
-      useGroupStore.getState().messages[groupId] || [],
-      lastMsg.senderName,
-      lastMsg.content
-    );
+    // 模拟打字延迟，让对话节奏更自然
+    await delay(1200 + Math.random() * 1500);
 
-    const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: context },
-          ...recentMsgs,
-        ],
-        stream: false,
-        temperature: 0.9,
-        max_tokens: 120,
-      }),
-    });
+    try {
+      const allMessages = useGroupStore.getState().messages[groupId] || [];
+      const recentMsgs = allMessages.slice(-8).map((m) => ({
+        role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: `${m.senderName}：${m.content.slice(0, 120)}`,
+      }));
 
-    if (!response.ok) {
+      const context = buildAIChatContext(
+        next.speakerId,
+        allMessages,
+        currentLastMsg.senderName,
+        currentLastMsg.content,
+        round,
+        MAX_ROUNDS
+      );
+
+      const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [
+            { role: 'system', content: context },
+            ...recentMsgs,
+          ],
+          stream: false,
+          temperature: 0.9,
+          max_tokens: round >= MAX_ROUNDS - 1 ? 80 : 200,
+        }),
+      });
+
+      if (!response.ok) {
+        useGroupStore.setState((s) => ({
+          typingMembers: s.typingMembers.filter((id) => id !== next.speakerId),
+        }));
+        break;
+      }
+
+      const json = await response.json();
+      let reply = json.choices?.[0]?.message?.content || '';
+      let clean = reply.replace(/^[^:]+[：:]\s*/, '').trim() || reply;
+
+      // 如果内容为空，使用本地回退
+      if (!clean) {
+        const fallbacks = [
+          '嗯，我明白你的意思。',
+          '哈哈哈，说得对。',
+          '确实是这样。',
+          '我也这么觉得~',
+          '...*若有所思地点头*',
+        ];
+        clean = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+      }
+
+      const aiMsg: GroupMessage = {
+        id: `g-auto-${Date.now()}-${round}`,
+        groupId,
+        sender: 'ai',
+        senderName: memberName,
+        characterId: next.speakerId,
+        content: clean,
+        timestamp: Date.now(),
+      };
+
+      useGroupStore.setState((s) => {
+        const updated = {
+          messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), aiMsg] },
+          groups: s.groups.map((g) =>
+            g.id === groupId
+              ? { ...g, lastMessage: memberName + '：' + clean.slice(0, 30), lastMessageTime: Date.now() }
+              : g
+          ),
+          typingMembers: s.typingMembers.filter((id) => id !== next.speakerId),
+        };
+        saveAllMessages(updated.messages);
+        saveGroups(updated.groups);
+        return updated;
+      });
+
+      // 更新当前最后消息，供下一轮使用
+      currentLastMsg = aiMsg;
+
+      // 倒数第二轮有50%概率自然收尾，避免每次都要等到最后一轮
+      if (round === MAX_ROUNDS - 2 && Math.random() > 0.5) {
+        break;
+      }
+    } catch {
       useGroupStore.setState((s) => ({
         typingMembers: s.typingMembers.filter((id) => id !== next.speakerId),
       }));
-      return;
+      break;
     }
-
-    const json = await response.json();
-    let reply = json.choices?.[0]?.message?.content || '';
-    let clean = reply.replace(/^[^:]+[：:]\s*/, '').trim() || reply;
-
-    // 如果内容为空，使用本地回退
-    if (!clean) {
-      const fallbacks = ['嗯。', '哈哈。', '确实。', '我也这么觉得。', '...*点头*'];
-      clean = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-    }
-
-    const aiMsg: GroupMessage = {
-      id: `g-auto-${Date.now()}`,
-      groupId,
-      sender: 'ai',
-      senderName: memberName,
-      characterId: next.speakerId,
-      content: clean,
-      timestamp: Date.now(),
-    };
-
-    useGroupStore.setState((s) => {
-      const updated = {
-        messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), aiMsg] },
-        groups: s.groups.map((g) =>
-          g.id === groupId
-            ? { ...g, lastMessage: memberName + '：' + clean.slice(0, 30), lastMessageTime: Date.now() }
-            : g
-        ),
-        typingMembers: s.typingMembers.filter((id) => id !== next.speakerId),
-      };
-      saveAllMessages(updated.messages);
-      saveGroups(updated.groups);
-      return updated;
-    });
-  } catch {
-    useGroupStore.setState((s) => ({
-      typingMembers: s.typingMembers.filter((id) => id !== next.speakerId),
-    }));
   }
 }
 

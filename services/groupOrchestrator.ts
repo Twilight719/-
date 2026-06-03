@@ -163,43 +163,52 @@ export function decideNextSpeaker(
   lastSenderId: string,
   lastContent: string,
   memberIds: string[],
+  round: number = 0,
+  totalRounds: number = 4,
 ): { speakerId: string; reasoning: string } | null {
-  // 1. 被点名必回（80%概率）
+  // 越到后期越不容易接话，让对话自然结束
+  const roundDecay = Math.max(0, round * 0.15); // 每轮降低15%接话概率
+
+  // 1. 被点名必回（高概率，随轮次衰减）
   const mentioned = memberIds.find((id) => {
     const meta = MEMBER_META[id];
     return meta && lastContent.includes(meta.name) && id !== lastSenderId;
   });
-  if (mentioned && Math.random() > 0.2) {
+  if (mentioned && Math.random() > (0.2 + roundDecay)) {
     return {
       speakerId: mentioned,
       reasoning: `被${MEMBER_META[lastSenderId]?.name || ''}点名，回应`,
     };
   }
 
-  // 2. 关系驱动的互动
+  // 2. 关系驱动的互动（概率随轮次衰减）
   const relationshipTriggers: Record<string, Array<{ target: string; prob: number; reason: string }>> = {
-    exusiai: [{ target: 'texas', prob: 0.6, reason: '能天使说完，德克萨斯吐槽' }],
-    texas: [{ target: 'exusiai', prob: 0.4, reason: '德克萨斯说完，能天使接茬' }],
-    closure: [{ target: 'kaltsit', prob: 0.5, reason: '可露希尔说完，凯尔希镇压' }],
-    kaltsit: [{ target: 'closure', prob: 0.3, reason: '凯尔希说完，可露希尔秒怂' }],
-    amiya: [{ target: 'kaltsit', prob: 0.3, reason: '阿米娅说完，凯尔希关心' }],
-    wisadel: [{ target: 'kaltsit', prob: 0.4, reason: '维什戴尔说完，凯尔希警告' }],
-    lappland: [{ target: 'texas', prob: 0.5, reason: '拉普兰德念叨德克萨斯' }],
-    lappland_alter: [{ target: 'texas_alter', prob: 0.4, reason: '荒芜拉普兰德关心德克萨斯' }],
-    mon3tr: [{ target: 'kaltsit', prob: 0.5, reason: 'Mon3tr找凯尔希' }],
+    exusiai: [{ target: 'texas', prob: 0.7, reason: '能天使说完，德克萨斯吐槽' }],
+    texas: [{ target: 'exusiai', prob: 0.5, reason: '德克萨斯说完，能天使接茬' }],
+    closure: [{ target: 'kaltsit', prob: 0.6, reason: '可露希尔说完，凯尔希镇压' }],
+    kaltsit: [{ target: 'closure', prob: 0.4, reason: '凯尔希说完，可露希尔秒怂' }],
+    amiya: [{ target: 'kaltsit', prob: 0.4, reason: '阿米娅说完，凯尔希关心' }],
+    wisadel: [{ target: 'kaltsit', prob: 0.5, reason: '维什戴尔说完，凯尔希警告' }],
+    lappland: [{ target: 'texas', prob: 0.6, reason: '拉普兰德念叨德克萨斯' }],
+    lappland_alter: [{ target: 'texas_alter', prob: 0.5, reason: '荒芜拉普兰德关心德克萨斯' }],
+    mon3tr: [{ target: 'kaltsit', prob: 0.6, reason: 'Mon3tr找凯尔希' }],
+    texas_alter: [{ target: 'lappland_alter', prob: 0.3, reason: '缄默德克萨斯回应拉普兰德' }],
+    silence: [{ target: 'silence_alter', prob: 0.3, reason: '赫默自言自语' }],
   };
 
   const triggers = relationshipTriggers[lastSenderId];
   if (triggers) {
     for (const t of triggers) {
-      if (memberIds.includes(t.target) && Math.random() < t.prob) {
+      const adjustedProb = Math.max(0, t.prob - roundDecay);
+      if (memberIds.includes(t.target) && Math.random() < adjustedProb) {
         return { speakerId: t.target, reasoning: t.reason };
       }
     }
   }
 
-  // 3. 话题延续（60%概率随机接话，提高群聊活跃度）
-  if (Math.random() > 0.4) {
+  // 3. 话题延续（概率随轮次衰减，前期高后期低）
+  const baseRandomProb = 0.7 - roundDecay; // 基础70%，每轮降15%
+  if (Math.random() < baseRandomProb) {
     const others = memberIds.filter((id) => id !== lastSenderId);
     const random = others[Math.floor(Math.random() * others.length)];
     if (random) {
