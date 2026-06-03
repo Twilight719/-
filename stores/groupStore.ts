@@ -50,11 +50,13 @@ function getGroupPrompt(memberIds: string[]): string {
 
 ${memberList}
 
-规则：
-- 用户（博士）发言后，由最相关的一位成员回应
-- 成员间可简短互动（不超过2轮）
-- 回复格式：角色名：内容
-- 回复2-4句，保持各自性格`;
+【严格规则 - 必须遵守】
+1. 每次回复只能有一位干员发言，绝对不能让多个干员在同一条消息里说话
+2. 回复格式必须是：干员名：该干员的发言内容
+3. 禁止出现"X说...然后Y又说..."这种格式——那是两条消息，不是一条
+4. 如果上一条是某干员说的，下一条必须换另一位干员回应
+5. 每位干员只说自己的话，不要替别人说话
+6. 回复1-3句话，保持各自性格`;
 }
 
 function getTimeContext(): string {
@@ -109,15 +111,10 @@ async function generateOperatorExchange(groupId: string, memberIds: string[], co
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
         body: JSON.stringify({
           model: config.model, messages: [
-            { role: 'system', content: `【罗德岛群聊 - 干员自主交流 第${round + 1}/5轮】
-成员：${memberList}
-群聊中的干员们正在自由聊天。请让其中一位干员（不是博士）发出自然的回应。
-规则：
-- 回应要简短自然（1-3句）
-- 评论上一句话、吐槽、接话、或开启新话题
-- 保持各自性格：阿米娅温柔、凯尔希冷淡、Mon3tr直率、可露希尔元气
-- ${round >= 3 ? '对话已进行了一段时间，让干员自然地收尾（如"我得去工作了"、"回头聊"）' : '尽情自由聊天'}
-- 格式：干员名：内容` },
+            { role: 'system', content: `【罗德岛群聊 - 第${round + 1}/5轮】
+${memberList}
+只让一位干员回应（不是博士），1-3句。格式：干员名：内容。
+禁止一条消息里出现多个干员。${round >= 3 ? '让干员自然收尾（"我得去工作了"等）。' : ''}` },
             ...recentMsgs,
           ],
           stream: false, temperature: 0.9, max_tokens: 180,
