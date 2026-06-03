@@ -776,27 +776,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
         chatId, sender: 'ai', content, timestamp: Date.now(),
       };
 
-      set((state) => {
-        const chatExists = state.chats.find((c) => c.id === chatId);
-        const updated = {
-          messages: {
-            ...state.messages,
-            [chatId]: [...(state.messages[chatId] || []), newMsg],
-          },
-          chats: state.chats.map((chat) =>
-            chat.id === chatId
-              ? { ...chat, lastMessage: content, lastMessageTime: Date.now(), unreadCount: chat.unreadCount + 1 }
-              : chat
-          ),
-        };
-        if (!chatExists) {
-          const newChat = createDefaultChat(charId);
-          updated.chats = [{ ...newChat, lastMessage: content, lastMessageTime: Date.now(), unreadCount: 1 }, ...updated.chats];
-        }
-        saveMessages(updated.messages);
-        saveChats(updated.chats);
-        return updated;
-      });
+      const state = get();
+      const chatExists = state.chats.find((c) => c.id === chatId);
+      const updated = {
+        messages: {
+          ...state.messages,
+          [chatId]: [...(state.messages[chatId] || []), newMsg],
+        },
+        chats: state.chats.map((chat) =>
+          chat.id === chatId
+            ? { ...chat, lastMessage: content, lastMessageTime: Date.now(), unreadCount: chat.unreadCount + 1 }
+            : chat
+        ),
+      };
+      if (!chatExists) {
+        const newChat = createDefaultChat(charId);
+        updated.chats = [{ ...newChat, lastMessage: content, lastMessageTime: Date.now(), unreadCount: 1 }, ...updated.chats];
+      }
+      set(updated);
+      saveMessages(updated.messages);
+      saveChats(updated.chats);
 
       await AsyncStorage.setItem(STORAGE_PROACTIVE, String(now.getTime()));
       return true;
