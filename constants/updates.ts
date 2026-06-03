@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '21',
+    version: '1.6.0',
+    date: '2026-06-02',
+    message:
+      '🌟 新干员 + 群聊优化\n• 新约能天使（拉特兰元气工程师）\n• 维什戴尔（萨卡兹雇佣兵领袖）\n• 群聊新增成员头像横条\n• 群聊显示正在输入的干员\n• 20名干员均可加入群聊',
+  },
+  {
     id: '20',
     version: '1.5.2',
     date: '2026-06-02',

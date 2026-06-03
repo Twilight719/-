@@ -28,6 +28,7 @@ const ALL_MEMBERS = [
   { id: 'chen', name: '陈' }, { id: 'chen_alter', name: '假日威龙陈' },
   { id: 'nearl', name: '临光' }, { id: 'nearl_alter', name: '耀骑士临光' },
   { id: 'siege', name: '推进之王' }, { id: 'siege_alter', name: '维娜·维多利亚' },
+  { id: 'exusiai', name: '新约能天使' }, { id: 'wisadel', name: '维什戴尔' },
 ];
 
 export default function GroupListScreen() {

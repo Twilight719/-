@@ -90,6 +90,10 @@ const NEARL_AVATAR = require('../assets/characters/nearl_avatar.webp');
 const NEARL_ALTER_AVATAR = require('../assets/characters/nearl_alter_avatar.webp');
 const SIEGE_AVATAR = require('../assets/characters/siege_avatar.webp');
 const SIEGE_ALTER_AVATAR = require('../assets/characters/siege_alter_avatar.webp');
+const EXUSIAI_AVATAR = require('../assets/characters/exusiai_avatar.webp');
+const EXUSIAI_FULL = require('../assets/characters/exusiai_full.webp');
+const WISADEL_AVATAR = require('../assets/characters/wisadel_avatar.webp');
+const WISADEL_FULL = require('../assets/characters/wisadel_full.webp');
 
 // 角色头像映射表（供加载时修复 asset ID + 异格切换）
 const CHARACTER_AVATARS: Record<string, ReturnType<typeof require>> = {
@@ -102,6 +106,7 @@ const CHARACTER_AVATARS: Record<string, ReturnType<typeof require>> = {
   chen: CHEN_AVATAR, chen_alter: CHEN_ALTER_AVATAR,
   nearl: NEARL_AVATAR, nearl_alter: NEARL_ALTER_AVATAR,
   siege: SIEGE_AVATAR, siege_alter: SIEGE_ALTER_AVATAR,
+  exusiai: EXUSIAI_AVATAR, wisadel: WISADEL_AVATAR,
 };
 
 const INITIAL_CHARACTERS: Character[] = [
@@ -245,6 +250,18 @@ const INITIAL_CHARACTERS: Character[] = [
     description: '觉醒维多利亚王室血脉的推进之王。',
     tags: ['近卫', '维多利亚', '异格'], alterOf: 'siege',
   },
+  {
+    id: 'exusiai', name: '新约能天使', avatar: EXUSIAI_AVATAR, fullImage: EXUSIAI_FULL,
+    codeName: 'Exusiai the New Covenant', race: '萨科塔', origin: '拉特兰', class: '怪杰',
+    description: '拉特兰的元气工程师与信仰行者，企鹅物流信使，教皇厅认可的信仰辅助器械设计师。',
+    tags: ['怪杰', '拉特兰', '企鹅物流', '工程师'],
+  },
+  {
+    id: 'wisadel', name: '维什戴尔', avatar: WISADEL_AVATAR, fullImage: WISADEL_FULL,
+    codeName: "Wis'adel", race: '萨卡兹', origin: '卡兹戴尔', class: '狙击',
+    description: '新巴别塔议长，萨卡兹雇佣兵领袖，特蕾西娅殿下赐名的继承者。',
+    tags: ['狙击', '萨卡兹', '新巴别塔', '议长'],
+  },
 ];
 
 // ====== 干员主动消息（回退用） ======
@@ -296,6 +313,8 @@ const DEFAULT_CHATS: Record<string, { lastMessage: string }> = {
   nearl_alter: { lastMessage: '博士，光明终将战胜黑暗。' },
   siege: { lastMessage: '博士！格拉斯哥帮的兄弟们都在等你。' },
   siege_alter: { lastMessage: '博士，维多利亚的事...我想和您谈谈。' },
+  exusiai: { lastMessage: '博士~看看我新设计的CONFESS-47！今天弹药管够！' },
+  wisadel: { lastMessage: '博士，巴别塔和罗德岛的合作...哼，看在那个老女人的面子上。' },
 };
 
 function createDefaultChat(charId: string): Chat {
@@ -362,6 +381,7 @@ async function loadChats(): Promise<Chat[]> {
   'chat-chen', 'chat-chen_alter',
   'chat-nearl', 'chat-nearl_alter',
   'chat-siege', 'chat-siege_alter',
+  'chat-exusiai', 'chat-wisadel',
 ];
       const filtered = chats
         .filter((chat) => allowedIds.includes(chat.id))
@@ -438,6 +458,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   'chat-chen', 'chat-chen_alter',
   'chat-nearl', 'chat-nearl_alter',
   'chat-siege', 'chat-siege_alter',
+  'chat-exusiai', 'chat-wisadel',
 ];
     for (const requiredChatId of requiredChats) {
       if (!persistedChats.find((c) => c.id === requiredChatId)) {

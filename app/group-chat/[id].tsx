@@ -7,16 +7,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { ArkHeader } from '@/components/ArkUI';
-import { useGroupStore, GroupMessage, MEMBER_NAMES, MEMBER_AVATARS } from '@/stores/groupStore';
+import { useGroupStore, GroupMessage, MEMBER_NAMES, MEMBER_AVATARS, MEMBER_COLORS } from '@/stores/groupStore';
 import { COLORS, FONTS, SPACING } from '@/constants/theme';
 
-const NAME_TO_AVATAR: Record<string, ReturnType<typeof require>> = {
-  '阿米娅': MEMBER_AVATARS['amiya'], '凯尔希': MEMBER_AVATARS['kaltsit'],
-  'Mon3tr': MEMBER_AVATARS['mon3tr'], '可露希尔': MEMBER_AVATARS['closure'],
-};
-
 function getAvatar(name: string) {
-  return NAME_TO_AVATAR[name] || MEMBER_AVATARS['amiya'];
+  const entry = Object.entries(MEMBER_NAMES).find(([, n]) => n === name);
+  if (entry) return MEMBER_AVATARS[entry[0]];
+  return MEMBER_AVATARS['amiya'];
+}
+
+function getColor(name: string) {
+  const entry = Object.entries(MEMBER_NAMES).find(([, n]) => n === name);
+  if (entry) return MEMBER_COLORS[entry[0]] || COLORS.primary;
+  return COLORS.primary;
 }
 
 const ALL_MEMBERS = [
@@ -29,14 +32,10 @@ const ALL_MEMBERS = [
   { id: 'chen', name: '陈' }, { id: 'chen_alter', name: '假日威龙陈' },
   { id: 'nearl', name: '临光' }, { id: 'nearl_alter', name: '耀骑士临光' },
   { id: 'siege', name: '推进之王' }, { id: 'siege_alter', name: '维娜·维多利亚' },
+  { id: 'exusiai', name: '新约能天使' }, { id: 'wisadel', name: '维什戴尔' },
 ];
 
 const CHAT_BG = require('../../assets/characters/amiya_bg.png');
-
-const OPERATOR_COLORS: Record<string, string> = {
-  '阿米娅': COLORS.primary, '凯尔希': COLORS.advanced,
-  'Mon3tr': COLORS.secondary, '可露希尔': COLORS.accent,
-};
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -52,6 +51,7 @@ export default function GroupChatScreen() {
   const group = useGroupStore((s) => s.groups.find((g) => g.id === id));
   const messages = useGroupStore((s) => s.messages[id] || []);
   const isTyping = useGroupStore((s) => s.isTyping && s.typingGroupId === id);
+  const typingMembers = useGroupStore((s) => s.typingGroupId === id ? s.typingMembers : []);
   const sendMessage = useGroupStore((s) => s.sendMessage);
   const addMembers = useGroupStore((s) => s.addMembers);
   const removeMember = useGroupStore((s) => s.removeMember);
@@ -87,7 +87,7 @@ export default function GroupChatScreen() {
   }, [inputText, id, sendMessage]);
 
   const renderItem = ({ item, index }: { item: GroupMessage; index: number }) => {
-    const color = OPERATOR_COLORS[item.senderName] || COLORS.primary;
+    const color = getColor(item.senderName);
     const isUser = item.sender === 'user';
     return (
       <View style={[styles.msgRow, isUser && styles.msgRowRight]}>
@@ -120,14 +120,33 @@ export default function GroupChatScreen() {
           </TouchableOpacity>
         }
       />
+      {/* 顶部成员列表 */}
+      <View style={styles.memberBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.memberBarContent}>
+          {group?.memberIds.map((mid) => (
+            <View key={mid} style={styles.memberItem}>
+              <Image
+                source={MEMBER_AVATARS[mid]}
+                style={[styles.memberAvatar, { borderColor: MEMBER_COLORS[mid] || COLORS.primary }]}
+              />
+              <Text style={styles.memberLabel}>{MEMBER_NAMES[mid] || mid}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.kv} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <FlatList ref={flatListRef} data={messages} keyExtractor={(item) => item.id} renderItem={renderItem}
           contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
-        {isTyping && (
+        {typingMembers.length > 0 && (
           <Animated.View style={[styles.typing, { opacity: blinkAnim }]}>
-            <Text style={styles.typingText}>干员们正在讨论...</Text>
+            {typingMembers.map((mid) => (
+              <Text key={mid} style={styles.typingText}>
+                {MEMBER_NAMES[mid] || mid} 正在输入...
+              </Text>
+            ))}
           </Animated.View>
         )}
         <BlurView intensity={30} tint="dark" style={styles.bar}>
@@ -240,4 +259,10 @@ const styles = StyleSheet.create({
   addChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, backgroundColor: 'rgba(216,221,90,0.08)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(216,221,90,0.2)', marginRight: SPACING.sm, marginBottom: SPACING.sm },
   addChipText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.accent, marginLeft: 4 },
   noMoreText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.low, textAlign: 'center', marginTop: SPACING.md },
+  // 顶部成员列表
+  memberBar: { paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.divider, backgroundColor: 'rgba(0,0,0,0.2)' },
+  memberBarContent: { paddingHorizontal: SPACING.md },
+  memberItem: { alignItems: 'center', marginRight: SPACING.md },
+  memberAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, backgroundColor: 'rgba(255,255,255,0.05)' },
+  memberLabel: { fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textSecondary, marginTop: 2 },
 });

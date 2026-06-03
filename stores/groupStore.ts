@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { decideResponders, decideNextSpeaker, MEMBER_COLORS } from '@/services/groupOrchestrator';
+import { buildGroupSystemPrompt, buildAIChatContext } from '@/services/groupContext';
+import { streamChat, ChatMessage } from '@/services/deepseek';
 
 export interface Group {
   id: string;
@@ -34,6 +37,7 @@ const MEMBER_NAMES: Record<string, string> = {
   chen: '陈', chen_alter: '假日威龙陈',
   nearl: '临光', nearl_alter: '耀骑士临光',
   siege: '推进之王', siege_alter: '维娜·维多利亚',
+  exusiai: '新约能天使', wisadel: '维什戴尔',
 };
 
 const MEMBER_AVATARS: Record<string, ReturnType<typeof require>> = {
@@ -55,6 +59,8 @@ const MEMBER_AVATARS: Record<string, ReturnType<typeof require>> = {
   nearl_alter: require('../assets/characters/nearl_alter_avatar.webp'),
   siege: require('../assets/characters/siege_avatar.webp'),
   siege_alter: require('../assets/characters/siege_alter_avatar.webp'),
+  exusiai: require('../assets/characters/exusiai_avatar.webp'),
+  wisadel: require('../assets/characters/wisadel_avatar.webp'),
 };
 
 // 群聊系统提示词模板
@@ -78,6 +84,8 @@ function getGroupPrompt(memberIds: string[]): string {
     nearl_alter: '耀骑士临光：经历黑暗仍选择光明的成熟临光。',
     siege: '推进之王：格拉斯哥帮领袖，自信领导力强。',
     siege_alter: '维娜·维多利亚：觉醒王室血脉的沉稳领袖。',
+    exusiai: '新约能天使：拉特兰元气工程师，信仰行者，企鹅物流信使。热情元气，喜欢分享设计图纸和苹果派。',
+    wisadel: '维什戴尔：新巴别塔议长，萨卡兹雇佣兵领袖。戏谑中带着威严，炸弹美学升级，为萨卡兹炸出回家的路。',
   };
   const memberList = memberIds.map((id) => memberDescs[id] || id).join('\n');
   return `【罗德岛内部群聊】
@@ -129,77 +137,98 @@ async function loadAllMessages(): Promise<Record<string, GroupMessage[]>> {
   try { const raw = await AsyncStorage.getItem(STORAGE_GROUP_MSGS); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 }
 
-// 干员自主交流（最多5轮，无博士参与时逐渐结束）
-async function generateOperatorExchange(groupId: string, memberIds: string[], config: any) {
-  const state = useGroupStore.getState();
-  const memberList = memberIds.map((id: string) => MEMBER_NAMES[id] || id).join('、');
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  for (let round = 0; round < 5; round++) {
-    try {
-      const recentMsgs = (state.messages[groupId] || []).slice(-6).map((m) => ({
-        role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: `${m.senderName}：${m.content.slice(0, 100)}`,
-      }));
+// AI 互聊（最多1轮，基于关系驱动）
+async function generateAIChatRound(
+  groupId: string,
+  lastMsg: GroupMessage,
+  memberIds: string[],
+  config: any
+): Promise<void> {
+  const next = decideNextSpeaker(lastMsg.characterId || '', lastMsg.content, memberIds);
+  if (!next) return;
 
-      const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
-      const response = await fetch(url, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-        body: JSON.stringify({
-          model: config.model, messages: [
-            { role: 'system', content: `【罗德岛群聊 - 第${round + 1}/5轮】
-${memberList}
-只让一位干员回应（不是博士），1-3句。格式：干员名：内容。
-禁止一条消息里出现多个干员。${round >= 3 ? '让干员自然收尾（"我得去工作了"等）。' : ''}` },
-            ...recentMsgs,
-          ],
-          stream: false, temperature: 0.9, max_tokens: 180,
-        }),
-      });
+  const memberName = MEMBER_NAMES[next.speakerId] || next.speakerId;
 
-      if (!response.ok) break;
-      const json = await response.json();
-      const reply = json.choices?.[0]?.message?.content || '';
-      if (!reply.trim()) break;
+  // 显示正在输入
+  useGroupStore.setState((s) => ({
+    typingMembers: [...new Set([...s.typingMembers, next.speakerId])],
+  }));
 
-      const senderName = reply.includes('：') ? reply.split('：')[0].trim() : (MEMBER_NAMES[memberIds[0]] || '阿米娅');
-      const clean = reply.includes('：') ? reply.split('：').slice(1).join('：').trim() : reply;
+  await delay(800 + Math.random() * 1000);
 
-      const aiMsg: GroupMessage = {
-        id: `g-auto-${Date.now()}-${round}`, groupId, sender: 'ai',
-        senderName, characterId: memberIds.find((id) => MEMBER_NAMES[id] === senderName),
-        content: '', timestamp: Date.now(),
-      };
+  try {
+    const recentMsgs = (useGroupStore.getState().messages[groupId] || []).slice(-6).map((m) => ({
+      role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: `${m.senderName}：${m.content.slice(0, 100)}`,
+    }));
 
-      // 添加到 store
+    const context = buildAIChatContext(
+      next.speakerId,
+      useGroupStore.getState().messages[groupId] || [],
+      lastMsg.senderName,
+      lastMsg.content
+    );
+
+    const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: context },
+          ...recentMsgs,
+        ],
+        stream: false,
+        temperature: 0.9,
+        max_tokens: 120,
+      }),
+    });
+
+    if (!response.ok) {
       useGroupStore.setState((s) => ({
+        typingMembers: s.typingMembers.filter((id) => id !== next.speakerId),
+      }));
+      return;
+    }
+
+    const json = await response.json();
+    const reply = json.choices?.[0]?.message?.content || '';
+    const clean = reply.replace(/^[^:]+[：:]\s*/, '').trim() || reply;
+
+    const aiMsg: GroupMessage = {
+      id: `g-auto-${Date.now()}`,
+      groupId,
+      sender: 'ai',
+      senderName: memberName,
+      characterId: next.speakerId,
+      content: clean,
+      timestamp: Date.now(),
+    };
+
+    useGroupStore.setState((s) => {
+      const updated = {
         messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), aiMsg] },
-        isTyping: true, typingGroupId: groupId,
-      }));
-
-      // 打字机效果
-      for (let i = 1; i <= clean.length; i++) {
-        useGroupStore.setState((s) => {
-          const msgs = [...(s.messages[groupId] || [])];
-          const last = msgs[msgs.length - 1];
-          if (last.id === aiMsg.id) msgs[msgs.length - 1] = { ...last, content: clean.slice(0, i) };
-          return { messages: { ...s.messages, [groupId]: msgs } };
-        });
-        await new Promise((r) => setTimeout(r, 20 + Math.random() * 20));
-      }
-
-      // 更新最后消息
-      useGroupStore.setState((s) => ({
-        groups: s.groups.map((g) => g.id === groupId ? { ...g, lastMessage: senderName + '：' + clean.slice(0, 30), lastMessageTime: Date.now() } : g),
-        isTyping: false, typingGroupId: null,
-      }));
-
-    } catch { break; }
+        groups: s.groups.map((g) =>
+          g.id === groupId
+            ? { ...g, lastMessage: memberName + '：' + clean.slice(0, 30), lastMessageTime: Date.now() }
+            : g
+        ),
+        typingMembers: s.typingMembers.filter((id) => id !== next.speakerId),
+      };
+      saveAllMessages(updated.messages);
+      saveGroups(updated.groups);
+      return updated;
+    });
+  } catch {
+    useGroupStore.setState((s) => ({
+      typingMembers: s.typingMembers.filter((id) => id !== next.speakerId),
+    }));
   }
-
-  // 保存
-  const final = useGroupStore.getState();
-  saveAllMessages(final.messages);
-  saveGroups(final.groups);
 }
 
 // ====== Store ======
@@ -208,6 +237,7 @@ interface GroupState {
   messages: Record<string, GroupMessage[]>;
   isTyping: boolean;
   typingGroupId: string | null;
+  typingMembers: string[]; // 当前正在输入的成员ID列表
   initGroups: () => Promise<void>;
   createGroup: (name: string, memberIds: string[]) => Promise<Group>;
   addMembers: (groupId: string, memberIds: string[]) => void;
@@ -222,6 +252,7 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   messages: {},
   isTyping: false,
   typingGroupId: null,
+  typingMembers: [],
 
   initGroups: async () => {
     let groups = await loadGroups();
@@ -272,21 +303,20 @@ export const useGroupStore = create<GroupState>((set, get) => ({
     const group = get().groups.find((g) => g.id === groupId);
     if (!group) return;
 
+    // 1. 记录用户消息
     const userMsg: GroupMessage = {
       id: `g-${Date.now()}`, groupId, sender: 'user',
       senderName: '博士', content, timestamp: Date.now(),
     };
-    set((s) => {
-      const updated = {
-        messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), userMsg] },
-        isTyping: true, typingGroupId: groupId,
-      };
-      return updated;
-    });
+    set((s) => ({
+      messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), userMsg] },
+      isTyping: true, typingGroupId: groupId, typingMembers: [],
+    }));
 
     const settings = useSettingsStore.getState();
     const config = settings.flash;
 
+    // 无 API Key → 本地降级
     if (!config.apiKey.trim()) {
       const aiMsg: GroupMessage = {
         id: `g-${Date.now()}-ai`, groupId, sender: 'ai',
@@ -298,7 +328,7 @@ export const useGroupStore = create<GroupState>((set, get) => ({
         const updated = {
           messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), aiMsg] },
           groups: s.groups.map((g) => g.id === groupId ? { ...g, lastMessage: aiMsg.content, lastMessageTime: Date.now() } : g),
-          isTyping: false, typingGroupId: null,
+          isTyping: false, typingGroupId: null, typingMembers: [],
         };
         saveAllMessages(updated.messages);
         saveGroups(updated.groups);
@@ -308,59 +338,83 @@ export const useGroupStore = create<GroupState>((set, get) => ({
     }
 
     try {
+      // 2. 调度器决定谁回应
       const history = (get().messages[groupId] || []).map((m) => ({
-        role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: `${m.senderName}：${m.content}`,
+        senderName: m.senderName,
+        content: m.content,
       }));
-      const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
-      const messages = [
-        { role: 'system' as const, content: getGroupPrompt(group.memberIds) + '\n当前时间：' + getTimeContext() },
-        ...history.slice(-15),
-        { role: 'user' as const, content: `博士：${content}` },
-      ];
-      const response = await fetch(url, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-        body: JSON.stringify({ model: config.model, messages, stream: false, temperature: 0.85, max_tokens: 300 }),
-      });
-      if (!response.ok) throw new Error('API_ERROR');
-      const json = await response.json();
-      const reply = json.choices?.[0]?.message?.content || '';
-      const senderName = extractSender(reply) || (MEMBER_NAMES[group.memberIds[0]] || '阿米娅');
-      const clean = reply.replace(/^.+?[：:]\s*/, '').trim() || reply;
+      const responders = decideResponders(content, group.memberIds, history, 2);
 
-      const aiMsgId = `g-${Date.now()}-ai`;
-      const aiMsg: GroupMessage = {
-        id: aiMsgId, groupId, sender: 'ai', senderName,
-        characterId: group.memberIds.find((id) => MEMBER_NAMES[id] === senderName),
-        content: '', timestamp: Date.now(),
-      };
-      set((s) => ({ messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), aiMsg] } }));
+      // 3. 依次生成回复
+      for (let i = 0; i < responders.length; i++) {
+        const responder = responders[i];
+        const memberId = responder.speakerId;
+        const memberName = MEMBER_NAMES[memberId] || memberId;
 
-      // 打字机逐字
-      for (let i = 1; i <= clean.length; i++) {
-        set((s) => {
-          const msgs = [...(s.messages[groupId] || [])];
-          const last = msgs[msgs.length - 1];
-          if (last.id === aiMsgId) msgs[msgs.length - 1] = { ...last, content: clean.slice(0, i) };
-          return { messages: { ...s.messages, [groupId]: msgs } };
-        });
-        await new Promise((r) => setTimeout(r, 25 + Math.random() * 25));
-      }
+        // 显示正在输入
+        set((s) => ({
+          typingMembers: [...new Set([...s.typingMembers, memberId])],
+        }));
 
-      set((s) => {
-        const finalContent = senderName + '：' + clean;
-        return {
-          groups: s.groups.map((g) => g.id === groupId ? { ...g, lastMessage: finalContent.slice(0, 50), lastMessageTime: Date.now() } : g),
-          isTyping: false, typingGroupId: null,
+        // 延迟模拟打字
+        await delay(600 + Math.random() * 1200);
+
+        const systemPrompt = buildGroupSystemPrompt(memberId, group.memberIds, history);
+        const chatHistory: ChatMessage[] = history.slice(-10).map((h) => ({
+          role: 'user',
+          content: `${h.senderName}：${h.content}`,
+        }));
+
+        // 调用 AI（使用自定义群聊提示词）
+        let aiContent = '';
+        const generator = streamChat(chatHistory, content, 'amiya', systemPrompt);
+        for await (const chunk of generator) {
+          if (chunk.type === 'content') {
+            aiContent += chunk.data || '';
+          }
+        }
+
+        // 清理格式
+        const cleanContent = aiContent.replace(/^[^:]+[：:]\s*/, '').trim() || aiContent;
+
+        const aiMsg: GroupMessage = {
+          id: `g-${Date.now()}-${i}`,
+          groupId,
+          sender: 'ai',
+          senderName: memberName,
+          characterId: memberId,
+          content: cleanContent,
+          timestamp: Date.now(),
         };
-      });
-      saveAllMessages(get().messages);
-      saveGroups(get().groups);
 
-      // 干员自主交流：最多 2 轮跟进
-      if (group.memberIds.length >= 2) {
-        await generateOperatorExchange(groupId, group.memberIds, config);
+        set((s) => {
+          const updated = {
+            messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), aiMsg] },
+            groups: s.groups.map((g) =>
+              g.id === groupId
+                ? { ...g, lastMessage: memberName + '：' + cleanContent.slice(0, 30), lastMessageTime: Date.now() }
+                : g
+            ),
+            typingMembers: s.typingMembers.filter((id) => id !== memberId),
+          };
+          saveAllMessages(updated.messages);
+          saveGroups(updated.groups);
+          return updated;
+        });
+
+        // 更新历史供下一轮使用
+        history.push({ senderName: memberName, content: cleanContent });
+
+        // 4. 最后一个回应者触发 AI 互聊（最多1轮）
+        if (i === responders.length - 1 && group.memberIds.length >= 2) {
+          await generateAIChatRound(groupId, aiMsg, group.memberIds, config);
+        }
       }
+
+      // 结束打字状态
+      set((s) => ({
+        isTyping: false, typingGroupId: null, typingMembers: [],
+      }));
     } catch {
       const aiMsg: GroupMessage = {
         id: `g-${Date.now()}-ai`, groupId, sender: 'ai',
@@ -372,7 +426,7 @@ export const useGroupStore = create<GroupState>((set, get) => ({
         const updated = {
           messages: { ...s.messages, [groupId]: [...(s.messages[groupId] || []), aiMsg] },
           groups: s.groups.map((g) => g.id === groupId ? { ...g, lastMessage: aiMsg.content, lastMessageTime: Date.now() } : g),
-          isTyping: false, typingGroupId: null,
+          isTyping: false, typingGroupId: null, typingMembers: [],
         };
         saveAllMessages(updated.messages);
         saveGroups(updated.groups);
@@ -431,8 +485,8 @@ export const useGroupStore = create<GroupState>((set, get) => ({
 }));
 
 function extractSender(text: string): string | null {
-  const known = ['凯尔希', 'Mon3tr', '可露希尔', '阿米娅'];
+  const known = ['凯尔希', 'Mon3tr', '可露希尔', '阿米娅', '新约能天使', '维什戴尔'];
   return known.find((n) => text.startsWith(n + '：') || text.startsWith(n + ':')) || null;
 }
 
-export { MEMBER_NAMES, MEMBER_AVATARS };
+export { MEMBER_NAMES, MEMBER_AVATARS, MEMBER_COLORS };
