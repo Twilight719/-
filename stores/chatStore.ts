@@ -280,13 +280,6 @@ const DEFAULT_CHATS: Record<string, { lastMessage: string }> = {
   kaltsit: { lastMessage: '医疗部通讯已接通。有事直说。' },
   mon3tr: { lastMessage: 'Mon3tr在这里。博士...凯尔希在吗？' },
   closure: { lastMessage: '博士~要不要看看可露希尔大师的最新发明？今天打折哦！' },
-  texas: { lastMessage: '...企鹅物流。有事？' },
-  lappland: { lastMessage: '哈哈哈！博士！来打架吗？' },
-  silence: { lastMessage: '博士...莱茵生命的研究数据需要你过目。' },
-  eyja: { lastMessage: '博士？啊...天灾预警报告在这里...您说什么？' },
-  chen: { lastMessage: '龙门近卫局，陈。有什么需要汇报的？' },
-  nearl: { lastMessage: '博士，今天的训练计划已安排。需要调整吗？' },
-  siege: { lastMessage: '博士！格拉斯哥帮的兄弟们都在等你。' },
 };
 
 function createDefaultChat(charId: string): Chat {
@@ -402,11 +395,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     // 迁移：确保所有默认干员聊天都存在（旧版本升级）
-    const requiredChats = [
-  'chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure',
-  'chat-texas', 'chat-lappland', 'chat-silence', 'chat-eyja',
-  'chat-chen', 'chat-nearl', 'chat-siege',
-];
+    const requiredChats = ['chat-amiya', 'chat-kaltsit', 'chat-mon3tr', 'chat-closure'];
     for (const requiredChatId of requiredChats) {
       if (!persistedChats.find((c) => c.id === requiredChatId)) {
         const charId = requiredChatId.replace('chat-', '');
