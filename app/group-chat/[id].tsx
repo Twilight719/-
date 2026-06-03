@@ -15,6 +15,10 @@ const NAME_TO_AVATAR: Record<string, ReturnType<typeof require>> = {
   'Mon3tr': MEMBER_AVATARS['mon3tr'], '可露希尔': MEMBER_AVATARS['closure'],
 };
 
+function getAvatar(name: string) {
+  return NAME_TO_AVATAR[name] || MEMBER_AVATARS['amiya'];
+}
+
 const ALL_MEMBERS = [
   { id: 'amiya', name: '阿米娅' },
   { id: 'kaltsit', name: '凯尔希' },
