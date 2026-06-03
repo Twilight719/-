@@ -51,7 +51,10 @@ export default function GroupChatScreen() {
   const group = useGroupStore((s) => s.groups.find((g) => g.id === id));
   const messages = useGroupStore((s) => s.messages[id] || []);
   const isTyping = useGroupStore((s) => s.isTyping && s.typingGroupId === id);
-  const typingMembers = useGroupStore((s) => s.typingGroupId === id ? s.typingMembers : []);
+  const typingMembers = useGroupStore((s) => {
+    if (s.typingGroupId !== id) return undefined;
+    return s.typingMembers;
+  }) || [];
   const sendMessage = useGroupStore((s) => s.sendMessage);
   const addMembers = useGroupStore((s) => s.addMembers);
   const removeMember = useGroupStore((s) => s.removeMember);
@@ -68,7 +71,7 @@ export default function GroupChatScreen() {
     if (messages.length > 0) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
     }
-  }, [messages.length, messages[messages.length - 1]?.content.length]);
+  }, [messages.length]);
 
   useEffect(() => {
     if (isTyping) {
@@ -260,7 +263,7 @@ const styles = StyleSheet.create({
   addChipText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.accent, marginLeft: 4 },
   noMoreText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.low, textAlign: 'center', marginTop: SPACING.md },
   // 顶部成员列表
-  memberBar: { paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.divider, backgroundColor: 'rgba(0,0,0,0.2)' },
+  memberBar: { height: 64, paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.divider, backgroundColor: 'rgba(0,0,0,0.2)' },
   memberBarContent: { paddingHorizontal: SPACING.md },
   memberItem: { alignItems: 'center', marginRight: SPACING.md },
   memberAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, backgroundColor: 'rgba(255,255,255,0.05)' },
