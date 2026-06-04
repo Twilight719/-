@@ -17,17 +17,14 @@ export default function RootLayout() {
   });
 
   const initChats = useChatStore((s) => s.initChats);
-  const checkProactiveMessage = useChatStore((s) => s.checkProactiveMessage);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const [showUpdate, setShowUpdate] = useState(false);
   const [updateMode, setUpdateMode] = useState<UpdateMode>(null);
 
   useEffect(() => {
     if (fontsLoaded) {
-      // 加载持久化聊天
+      // 加载持久化聊天（含主动消息注入）
       initChats();
-      // TODO: 主动消息功能暂时禁用，排查卡死根因
-      // checkProactiveMessage();
       loadSettings();
 
       // 启动后检查热更新
@@ -38,7 +35,7 @@ export default function RootLayout() {
         }
       });
     }
-  }, [fontsLoaded, initChats, checkProactiveMessage, loadSettings]);
+  }, [fontsLoaded, initChats, loadSettings]);
 
   if (!fontsLoaded) {
     return (

@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '23',
+    version: '1.6.2',
+    date: '2026-06-03',
+    message:
+      '🔧 重写主动消息系统（安全版）\n• 主动消息注入 initChats，不再后台异步 set\n• 消除与其他聊天页的渲染冲突\n• 新增 proactiveService 独立服务',
+  },
+  {
     id: '22',
     version: '1.6.1',
     date: '2026-06-02',

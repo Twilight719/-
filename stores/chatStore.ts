@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { streamChat, getFallbackReply, ChatMessage } from '@/services/deepseek';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { shouldSendProactive, generateProactiveMessage, markProactiveSent } from '@/services/proactiveService';
 
 export interface Message {
   id: string;
@@ -468,6 +469,38 @@ export const useChatStore = create<ChatState>((set, get) => ({
           persistedMessages[requiredChatId] = [];
         }
       }
+    }
+
+    // 主动消息：在 set() 之前注入，避免后台异步 set 冲突
+    try {
+      if (await shouldSendProactive()) {
+        const pm = await generateProactiveMessage();
+        if (pm) {
+          persistedMessages[pm.chatId] = [
+            ...(persistedMessages[pm.chatId] || []),
+            {
+              id: `m-pro-${Date.now()}`,
+              chatId: pm.chatId,
+              sender: 'ai' as const,
+              content: pm.content,
+              timestamp: Date.now(),
+            },
+          ];
+          // 更新聊天列表
+          const chatIdx = persistedChats.findIndex((c) => c.id === pm.chatId);
+          if (chatIdx >= 0) {
+            persistedChats[chatIdx] = {
+              ...persistedChats[chatIdx],
+              lastMessage: pm.content,
+              lastMessageTime: Date.now(),
+              unreadCount: persistedChats[chatIdx].unreadCount + 1,
+            };
+          }
+          await markProactiveSent();
+        }
+      }
+    } catch (e) {
+      console.error('[ChatStore] 主动消息注入失败:', e);
     }
 
     set({
