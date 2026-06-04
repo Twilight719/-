@@ -188,6 +188,32 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
+        {/* DeepSeek API Key 获取教程 */}
+        <View style={[styles.hintBox, { backgroundColor: 'rgba(216,221,90,0.06)', borderColor: 'rgba(216,221,90,0.2)' }]}>
+          <Text style={[styles.hintTitle, { color: COLORS.accent }]}>🔑 如何获取 DeepSeek API Key</Text>
+          <Text style={styles.tutorialStep}>第一步</Text>
+          <Text style={styles.hintText}>
+            打开浏览器访问 https://platform.deepseek.com{'\n'}
+            点击右上角「注册/登录」，支持手机号或邮箱注册
+          </Text>
+          <Text style={styles.tutorialStep}>第二步</Text>
+          <Text style={styles.hintText}>
+            登录后在左侧菜单找到「API Keys」{'\n'}
+            点击「创建 API Key」，输入一个名称（如"干员终端"）
+          </Text>
+          <Text style={styles.tutorialStep}>第三步</Text>
+          <Text style={styles.hintText}>
+            复制生成的 Key（格式：sk-xxxxxxxxxxxxxxxx）{'\n'}
+            ⚠️ Key 只显示一次，请务必保存好！
+          </Text>
+          <Text style={styles.tutorialStep}>第四步</Text>
+          <Text style={styles.hintText}>
+            回到本页面，将 Key 粘贴到上方的「API Key」输入框中{'\n'}
+            Flash 和 Pro 可以填写同一个 Key
+          </Text>
+          <Text style={styles.tutorialNote}>💡 新用户注册赠送 500 万 tokens 免费额度，足够日常使用。用完后按量付费，价格很低。</Text>
+        </View>
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>干员终端 v1.4.0</Text>
           <Text style={styles.footerSub}>POWERED BY PRTS / DeepSeek AI</Text>
@@ -229,6 +255,8 @@ const styles = StyleSheet.create({
   hintBox: { backgroundColor: 'rgba(74,171,234,0.08)', borderWidth: 1, borderColor: 'rgba(74,171,234,0.2)', borderRadius: 4, padding: SPACING.md, marginBottom: SPACING.lg },
   hintTitle: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.primary, letterSpacing: 1, marginBottom: SPACING.sm },
   hintText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
+  tutorialStep: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.accent, letterSpacing: 1, marginTop: SPACING.sm, marginBottom: SPACING.xs },
+  tutorialNote: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.accent, lineHeight: 18, marginTop: SPACING.md, opacity: 0.8 },
   footer: { alignItems: 'center', paddingVertical: SPACING.lg },
   footerText: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.low, letterSpacing: 1 },
   footerSub: { fontFamily: FONTS.mono, fontSize: 9, color: 'rgba(255,255,255,0.2)', letterSpacing: 1, marginTop: SPACING.xs },
