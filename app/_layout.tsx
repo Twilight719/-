@@ -24,10 +24,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded) {
-      // 加载持久化聊天 + 检查阿米娅主动消息
-      initChats().then(() => {
-        checkProactiveMessage();
-      });
+      // 加载持久化聊天
+      initChats();
+      // TODO: 主动消息功能暂时禁用，排查卡死根因
+      // checkProactiveMessage();
       loadSettings();
 
       // 启动后检查热更新
