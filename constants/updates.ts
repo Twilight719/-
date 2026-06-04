@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '22',
+    version: '1.6.1',
+    date: '2026-06-02',
+    message:
+      '🔑 设置页新增 DeepSeek API Key 获取教程\n• 四步图文教程：注册→创建Key→复制→粘贴\n• 新用户免费 500 万 tokens 额度说明',
+  },
+  {
     id: '21',
     version: '1.6.0',
     date: '2026-06-02',
