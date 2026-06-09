@@ -11,6 +11,7 @@ import { ArkHeader, ArkButton } from '@/components/ArkUI';
 import { useSettingsStore, AIModelConfig } from '@/stores/settingsStore';
 import { useChatStore } from '@/stores/chatStore';
 import { COLORS, FONTS, SPACING } from '@/constants/theme';
+import { LATEST_UPDATE } from '@/constants/updates';
 
 const DOCTOR_AVATAR = require('../../assets/characters/doctor_avatar.webp');
 
@@ -187,7 +188,7 @@ export default function SettingsScreen() {
         <View style={styles.btnRow}>
           <ArkButton title="清除缓存" onPress={handleClearCache} variant="ghost" style={styles.resetBtn} />
           <ArkButton title="重置配置" onPress={handleReset} variant="ghost" style={styles.resetBtn} />
-          <ArkButton title="更新日志" onPress={() => router.push('/changelog')} variant="ghost" style={styles.resetBtn} />
+          <ArkButton title="更新日志" onPress={() => router.push('/changelog' as any)} variant="ghost" style={styles.resetBtn} />
         </View>
 
         {/* 说明 */}
@@ -228,7 +229,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>干员终端 v1.4.0</Text>
+          <Text style={styles.footerText}>干员终端 v{LATEST_UPDATE.version}</Text>
           <Text style={styles.footerSub}>POWERED BY PRTS / DeepSeek AI</Text>
         </View>
       </ScrollView>
