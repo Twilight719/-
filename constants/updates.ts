@@ -11,6 +11,13 @@ export interface UpdateEntry {
 
 export const UPDATE_LOG: UpdateEntry[] = [
   {
+    id: '24',
+    version: '1.6.3',
+    date: '2026-06-03',
+    message:
+      '🔧 优化已知问题\n• 清理缓存改为仅删除 2 天前单聊消息\n• 群聊设置和近期消息不受影响',
+  },
+  {
     id: '23',
     version: '1.6.2',
     date: '2026-06-03',
