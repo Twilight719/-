@@ -9,7 +9,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ArkHeader, ArkButton } from '@/components/ArkUI';
 import { useSettingsStore, AIModelConfig } from '@/stores/settingsStore';
 import { useChatStore } from '@/stores/chatStore';
-import { useGroupStore } from '@/stores/groupStore';
 import { COLORS, FONTS, SPACING } from '@/constants/theme';
 
 const DOCTOR_AVATAR = require('../../assets/characters/doctor_avatar.webp');
@@ -98,23 +97,34 @@ export default function SettingsScreen() {
 
   const handleClearCache = () => {
     Alert.alert(
-      '清除聊天记录',
-      '将删除所有聊天记录和群聊消息（API 配置保留）',
+      '清理旧消息',
+      '仅删除单聊中超过 2 天的消息。群聊、API 配置不受影响。',
       [
         { text: '取消', style: 'cancel' },
         {
-          text: '确认清除', style: 'destructive',
+          text: '确认清理', style: 'destructive',
           onPress: async () => {
-            const keys = [
-              '@rhodes_chats_v2', '@rhodes_messages_v2',
-              '@rhodes_groups_v2', '@rhodes_group_msgs_v2',
-              '@rhodes_last_proactive', '@rhodes_last_seen_update',
-            ];
-            await AsyncStorage.multiRemove(keys);
-            // 重置聊天和群聊 store
-            useChatStore.getState().initChats();
-            useGroupStore.getState().initGroups();
-            Alert.alert('已清除', '聊天记录已清空');
+            try {
+              const raw = await AsyncStorage.getItem('@rhodes_messages_v2');
+              if (raw) {
+                const allMessages: Record<string, any[]> = JSON.parse(raw);
+                const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60 * 1000;
+                let cleaned = 0;
+                for (const chatId of Object.keys(allMessages)) {
+                  const before = allMessages[chatId].length;
+                  allMessages[chatId] = allMessages[chatId].filter((m) => m.timestamp > twoDaysAgo);
+                  cleaned += before - allMessages[chatId].length;
+                }
+                await AsyncStorage.setItem('@rhodes_messages_v2', JSON.stringify(allMessages));
+                // 刷新 store
+                useChatStore.getState().initChats();
+                Alert.alert('完成', `已清理 ${cleaned} 条旧消息`);
+              } else {
+                Alert.alert('完成', '没有需要清理的消息');
+              }
+            } catch {
+              Alert.alert('失败', '清理过程中出现错误');
+            }
           },
         },
       ]
