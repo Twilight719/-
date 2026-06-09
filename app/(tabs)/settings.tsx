@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import { ArkHeader, ArkButton } from '@/components/ArkUI';
 import { useSettingsStore, AIModelConfig } from '@/stores/settingsStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -83,6 +84,7 @@ function ModelConfigCard({
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const settings = useSettingsStore();
   const [loaded, setLoaded] = useState(false);
 
@@ -185,6 +187,7 @@ export default function SettingsScreen() {
         <View style={styles.btnRow}>
           <ArkButton title="清除缓存" onPress={handleClearCache} variant="ghost" style={styles.resetBtn} />
           <ArkButton title="重置配置" onPress={handleReset} variant="ghost" style={styles.resetBtn} />
+          <ArkButton title="更新日志" onPress={() => router.push('/changelog')} variant="ghost" style={styles.resetBtn} />
         </View>
 
         {/* 说明 */}
